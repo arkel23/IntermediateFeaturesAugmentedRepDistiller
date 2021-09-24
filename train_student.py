@@ -153,8 +153,9 @@ def load_teacher(model_path, n_cls):
     print('==> loading teacher model')
     model_t = get_teacher_name(model_path)
     #model = model_dict[model_t](num_classes=n_cls)
-    model = model_extractor(model_t, num_classes=n_cls, state_dict_path=model_path)
-    #model.load_state_dict(torch.load(model_path)['model'])
+    #model = model_extractor(model_t, num_classes=n_cls, state_dict_path=model_path)
+    model = model_extractor(model_t, num_classes=n_cls)
+    model.load_state_dict(torch.load(model_path)['model'])
     print('==> done')
     return model
 
