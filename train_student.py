@@ -163,7 +163,8 @@ def main():
     best_acc = 0
 
     opt = parse_option()
-
+    print(opt)
+    
     wandb.init(config=opt)
     wandb.run.name = '{}'.format(opt.model_name)
 

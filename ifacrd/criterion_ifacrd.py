@@ -33,7 +33,7 @@ class IFACRDLoss(nn.Module):
         
         if opt.cont_no_l != 1:
             self.rescaler = MultiScaleToSingleScaleHead(opt, model_t)
-        self.cont_n_l = opt.cont_no_l
+        self.cont_no_l = opt.cont_no_l
         
         self.criterion = SupConLoss(temperature=opt.nce_t, base_temperature=opt.nce_t, contrast_mode='all')
        
@@ -80,8 +80,8 @@ class MultiScaleToSingleScaleHead(nn.Module):
             
     def get_reduction_dims(self, model, image_size):
         img = torch.rand(2, 3, image_size, image_size)
-        features = model(img)
-        dims = [layer_output.size(1) for layer_output in features[:-1]]
+        out = model(img, classify_only=False)
+        dims = [layer_output.size(1) for layer_output in out[:-1]]
         return dims
     
     def forward(self, x):

@@ -86,6 +86,7 @@ def main():
     best_acc = 0
 
     opt = parse_option()
+    print(opt)
 
     # dataloader
     if opt.dataset == 'cifar100':
