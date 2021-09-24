@@ -9,8 +9,10 @@ ckpts/
 *.jpg
 tmp*.py
 
+*.out
 *.pdf
-
+*.sh
+!**/scripts/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

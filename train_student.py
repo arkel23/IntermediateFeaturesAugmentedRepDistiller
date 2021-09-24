@@ -126,8 +126,10 @@ def parse_option():
 
     opt.model_t = get_teacher_name(opt.path_t)
 
-    opt.model_name = 'S:{}_T:{}_{}_{}_r:{}_a:{}_b:{}_{}'.format(opt.model_s, opt.model_t, opt.dataset, opt.distill,
-                                                                opt.gamma, opt.alpha, opt.beta, opt.trial)
+    opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_lr{}_temp{}_contl{}_rsl{}hd{}ln{}_pjl{}hd{}ln{}_{}'.format(
+        opt.model_s, opt.model_t, opt.dataset, opt.distill, opt.gamma, opt.alpha, opt.beta, 
+        opt.batch_size, opt.learning_rate, opt.nce_t, opt.cont_no_l, opt.rs_no_l, opt.rs_hid_dim, opt.rs_ln, 
+        opt.proj_no_l, opt.proj_hid_dim, opt.proj_ln, opt.trial)
 
     #opt.tb_folder = os.path.join(opt.tb_path, opt.model_name)
     #if not os.path.isdir(opt.tb_folder):
