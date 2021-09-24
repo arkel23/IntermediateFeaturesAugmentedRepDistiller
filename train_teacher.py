@@ -112,6 +112,7 @@ def main():
         cudnn.benchmark = True
 
     wandb.init(config=opt)
+    wandb.run.name = '{}'.format(opt.model_name)
 
     # routine
     for epoch in range(1, opt.epochs + 1):

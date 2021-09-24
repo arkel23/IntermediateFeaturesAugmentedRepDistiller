@@ -165,6 +165,7 @@ def main():
     opt = parse_option()
 
     wandb.init(config=opt)
+    wandb.run.name = '{}'.format(opt.model_name)
 
     # dataloader
     if opt.dataset == 'cifar100':
