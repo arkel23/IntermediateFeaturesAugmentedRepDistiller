@@ -80,8 +80,8 @@ class VGG(nn.Module):
         f3_pre = x
         x = F.relu(x)
         f3 = x
-        if h == 64:
-            x = self.pool3(x)
+        #if h == 64:
+        #    x = self.pool3(x)
         x = self.block4(x)
         f4_pre = x
         x = F.relu(x)
@@ -90,7 +90,7 @@ class VGG(nn.Module):
         x = x.view(x.size(0), -1)
         f5 = x
         x = self.classifier(x)
-
+        '''
         if is_feat:
             if preact:
                 return [f0, f1_pre, f2_pre, f3_pre, f4_pre, f5], x
@@ -98,7 +98,9 @@ class VGG(nn.Module):
                 return [f0, f1, f2, f3, f4, f5], x
         else:
             return x
-
+        '''
+        return x
+        
     @staticmethod
     def _make_layers(cfg, batch_norm=False, in_channels=3):
         layers = []

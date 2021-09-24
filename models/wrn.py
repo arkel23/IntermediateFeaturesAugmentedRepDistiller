@@ -114,6 +114,7 @@ class WideResNet(nn.Module):
         out = out.view(-1, self.nChannels)
         f4 = out
         out = self.fc(out)
+        '''
         if is_feat:
             if preact:
                 f1 = self.block2.layer[0].bn1(f1)
@@ -122,7 +123,8 @@ class WideResNet(nn.Module):
             return [f0, f1, f2, f3, f4], out
         else:
             return out
-
+        '''
+        return out
 
 def wrn(**kwargs):
     """

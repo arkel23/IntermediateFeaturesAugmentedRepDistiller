@@ -106,6 +106,7 @@ class ShuffleNet(nn.Module):
         f4 = out
         out = self.linear(out)
 
+        '''
         if is_feat:
             if preact:
                 return [f0, f1_pre, f2_pre, f3_pre, f4], out
@@ -113,7 +114,8 @@ class ShuffleNet(nn.Module):
                 return [f0, f1, f2, f3, f4], out
         else:
             return out
-
+        '''
+        return out
 
 def ShuffleV1(**kwargs):
     cfg = {

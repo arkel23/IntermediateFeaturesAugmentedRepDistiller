@@ -11,7 +11,7 @@ import torch.optim as optim
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 
-from models import model_dict
+from models import model_dict, model_extractor
 
 from dataset.cifar100 import get_cifar100_dataloaders
 
@@ -43,7 +43,7 @@ def parse_option():
     parser.add_argument('--model', type=str, default='resnet110',
                         choices=['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110',
                                  'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2',
-                                 'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19',
+                                 'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet50',
                                  'MobileNetV2', 'ShuffleV1', 'ShuffleV2', ])
     parser.add_argument('--dataset', type=str, default='cifar100', choices=['cifar100'], help='dataset')
 
@@ -71,9 +71,9 @@ def parse_option():
     opt.model_name = '{}_{}_lr_{}_decay_{}_trial_{}'.format(opt.model, opt.dataset, opt.learning_rate,
                                                             opt.weight_decay, opt.trial)
 
-    opt.tb_folder = os.path.join(opt.tb_path, opt.model_name)
-    if not os.path.isdir(opt.tb_folder):
-        os.makedirs(opt.tb_folder)
+    #opt.tb_folder = os.path.join(opt.tb_path, opt.model_name)
+    #if not os.path.isdir(opt.tb_folder):
+    #    os.makedirs(opt.tb_folder)
 
     opt.save_folder = os.path.join(opt.model_path, opt.model_name)
     if not os.path.isdir(opt.save_folder):
@@ -95,7 +95,8 @@ def main():
         raise NotImplementedError(opt.dataset)
 
     # model
-    model = model_dict[opt.model](num_classes=n_cls)
+    #model = model_dict[opt.model](num_classes=n_cls)
+    model = model_extractor(opt.model, num_classes=n_cls)
 
     # optimizer
     optimizer = optim.SGD(model.parameters(),

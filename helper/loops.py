@@ -111,11 +111,22 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
         preact = False
         if opt.distill in ['abound']:
             preact = True
-        feat_s, logit_s = model_s(input, is_feat=True, preact=preact)
-        with torch.no_grad():
-            feat_t, logit_t = model_t(input, is_feat=True, preact=preact)
-            feat_t = [f.detach() for f in feat_t]
+        #feat_s, logit_s = model_s(input, is_feat=True, preact=preact)
+        #with torch.no_grad():
+        #    feat_t, logit_t = model_t(input, is_feat=True, preact=preact)
+        #    feat_t = [f.detach() for f in feat_t]
 
+        out_s = model_s(input, classify_only=False)
+        feat_s = out_s[:-1]
+        logit_s = out_s[-1]
+        
+        with torch.no_grad():
+            out_t = model_t(input, classify_only=False)
+            feat_t = out_t[:-1]
+            logit_t = out_t[-1]
+            if opt.distill != 'ifacrd':
+                feat_t = [f.detach() for f in feat_t]
+            
         # cls + kl div
         loss_cls = criterion_cls(logit_s, target)
         loss_div = criterion_div(logit_s, logit_t)
@@ -131,6 +142,9 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             f_s = feat_s[-1]
             f_t = feat_t[-1]
             loss_kd = criterion_kd(f_s, f_t, index, contrast_idx)
+        elif opt.distill == 'ifacrd':
+            f_s = feat_s[-1]
+            loss_kd = criterion_kd(f_s, feat_t)
         elif opt.distill == 'attention':
             g_s = feat_s[1:-1]
             g_t = feat_t[1:-1]

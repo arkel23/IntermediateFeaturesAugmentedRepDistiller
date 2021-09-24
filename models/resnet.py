@@ -193,14 +193,15 @@ class ResNet(nn.Module):
         f4 = x
         x = self.fc(x)
 
-        if is_feat:
+        '''if is_feat:
             if preact:
                 return [f0, f1_pre, f2_pre, f3_pre, f4], x
             else:
                 return [f0, f1, f2, f3, f4], x
         else:
             return x
-
+        '''
+        return x
 
 def resnet8(**kwargs):
     return ResNet(8, [16, 16, 32, 64], 'basicblock', **kwargs)

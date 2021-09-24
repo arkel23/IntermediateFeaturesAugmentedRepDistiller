@@ -23,8 +23,11 @@ class SplitBlock(nn.Module):
         super(SplitBlock, self).__init__()
         self.ratio = ratio
 
-    def forward(self, x):
-        c = int(x.size(1) * self.ratio)
+    def forward(self, x, test=True):
+        if test:
+            c = int(3 * self.ratio)
+        else:
+            c = int(x.size(1) * self.ratio)
         return x[:, :c, :, :], x[:, c:, :, :]
 
 
@@ -152,6 +155,7 @@ class ShuffleNetV2(nn.Module):
         out = out.view(out.size(0), -1)
         f4 = out
         out = self.linear(out)
+        '''
         if is_feat:
             if preact:
                 return [f0, f1_pre, f2_pre, f3_pre, f4], out
@@ -159,7 +163,8 @@ class ShuffleNetV2(nn.Module):
                 return [f0, f1, f2, f3, f4], out
         else:
             return out
-
+        '''
+        return out
 
 configs = {
     0.2: {

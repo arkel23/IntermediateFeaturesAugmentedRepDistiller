@@ -153,6 +153,7 @@ class ResNet(nn.Module):
         out = out.view(out.size(0), -1)
         f5 = out
         out = self.linear(out)
+        '''
         if is_feat:
             if preact:
                 return [[f0, f1_pre, f2_pre, f3_pre, f4_pre, f5], out]
@@ -160,7 +161,8 @@ class ResNet(nn.Module):
                 return [f0, f1, f2, f3, f4, f5], out
         else:
             return out
-
+        '''
+        return out
 
 def ResNet18(**kwargs):
     return ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)

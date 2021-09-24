@@ -1,3 +1,4 @@
+import torch
 from .resnet import resnet8, resnet14, resnet20, resnet32, resnet44, resnet56, resnet110, resnet8x4, resnet32x4
 from .resnetv2 import ResNet50
 from .wrn import wrn_16_1, wrn_16_2, wrn_40_1, wrn_40_2
@@ -5,6 +6,7 @@ from .vgg import vgg19_bn, vgg16_bn, vgg13_bn, vgg11_bn, vgg8_bn
 from .mobilenetv2 import mobile_half
 from .ShuffleNetv1 import ShuffleV1
 from .ShuffleNetv2 import ShuffleV2
+from .extractor import Extractor
 
 model_dict = {
     'resnet8': resnet8,
@@ -30,3 +32,10 @@ model_dict = {
     'ShuffleV1': ShuffleV1,
     'ShuffleV2': ShuffleV2,
 }
+
+def model_extractor(model_name, num_classes, state_dict_path=False):
+    m = model_dict[model_name](num_classes=num_classes)
+    if state_dict_path:
+        m.load_state_dict(torch.load(state_dict_path)['model'])
+    model = Extractor(m, model_name)
+    return model
