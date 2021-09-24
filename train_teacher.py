@@ -5,7 +5,7 @@ import argparse
 import socket
 import time
 
-import tensorboard_logger as tb_logger
+import wandb
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -110,8 +110,7 @@ def main():
         criterion = criterion.cuda()
         cudnn.benchmark = True
 
-    # tensorboard
-    logger = tb_logger.Logger(logdir=opt.tb_folder, flush_secs=2)
+    wandb.init(config=opt)
 
     # routine
     for epoch in range(1, opt.epochs + 1):
@@ -124,14 +123,11 @@ def main():
         time2 = time.time()
         print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
 
-        logger.log_value('train_acc', train_acc, epoch)
-        logger.log_value('train_loss', train_loss, epoch)
+        wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss})
 
         test_acc, test_acc_top5, test_loss = validate(val_loader, model, criterion, opt)
 
-        logger.log_value('test_acc', test_acc, epoch)
-        logger.log_value('test_acc_top5', test_acc_top5, epoch)
-        logger.log_value('test_loss', test_loss, epoch)
+        wandb.log({'test_acc': test_acc, 'test_loss': test_loss, 'test_acc_top5': test_acc_top5})
 
         # save the best model
         if test_acc > best_acc:

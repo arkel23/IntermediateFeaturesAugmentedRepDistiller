@@ -20,8 +20,12 @@ def get_data_folder():
         data_folder = '/data/vision/phillipi/rep-learn/datasets/imagenet'
     elif hostname.startswith('yonglong-home'):
         data_folder = '/home/yonglong/Data/data/imagenet'
+    elif hostname.startswith('server-3090'):
+        data_folder = '/hdd/edwin/data/ImageNet2012/ILSVRC/Data/CLS-LOC/'
     else:
-        data_folder = './data/imagenet'
+        data_folder = '/home/u1427924/data/ImageNet/CLS-LOC/'
+    #else:
+    #    data_folder = './data/imagenet'
 
     if not os.path.isdir(data_folder):
         os.makedirs(data_folder)

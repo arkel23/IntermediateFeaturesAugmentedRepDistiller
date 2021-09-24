@@ -9,7 +9,7 @@ import argparse
 import socket
 import time
 
-import tensorboard_logger as tb_logger
+import wandb
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -145,8 +145,7 @@ def main():
 
     opt = parse_option()
 
-    # tensorboard logger
-    logger = tb_logger.Logger(logdir=opt.tb_folder, flush_secs=2)
+    wandb.init(config=opt)
 
     # dataloader
     if opt.dataset == 'cifar100':
@@ -233,7 +232,7 @@ def main():
         init_trainable_list.append(connector)
         init_trainable_list.append(model_s.get_feat_modules())
         criterion_kd = ABLoss(len(feat_s[1:-1]))
-        init(model_s, model_t, init_trainable_list, criterion_kd, train_loader, logger, opt)
+        init(model_s, model_t, init_trainable_list, criterion_kd, train_loader, opt)
         # classification
         module_list.append(connector)
     elif opt.distill == 'factor':
@@ -245,7 +244,7 @@ def main():
         init_trainable_list = nn.ModuleList([])
         init_trainable_list.append(paraphraser)
         criterion_init = nn.MSELoss()
-        init(model_s, model_t, init_trainable_list, criterion_init, train_loader, logger, opt)
+        init(model_s, model_t, init_trainable_list, criterion_init, train_loader, opt)
         # classification
         criterion_kd = FactorTransfer()
         module_list.append(translator)
@@ -258,7 +257,7 @@ def main():
         # init stage training
         init_trainable_list = nn.ModuleList([])
         init_trainable_list.append(model_s.get_feat_modules())
-        init(model_s, model_t, init_trainable_list, criterion_kd, train_loader, logger, opt)
+        init(model_s, model_t, init_trainable_list, criterion_kd, train_loader, opt)
         # classification training
         pass
     else:
@@ -298,14 +297,11 @@ def main():
         time2 = time.time()
         print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
 
-        logger.log_value('train_acc', train_acc, epoch)
-        logger.log_value('train_loss', train_loss, epoch)
+        wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss})
 
-        test_acc, tect_acc_top5, test_loss = validate(val_loader, model_s, criterion_cls, opt)
+        test_acc, test_acc_top5, test_loss = validate(val_loader, model_s, criterion_cls, opt)
 
-        logger.log_value('test_acc', test_acc, epoch)
-        logger.log_value('test_loss', test_loss, epoch)
-        logger.log_value('test_acc_top5', tect_acc_top5, epoch)
+        wandb.log({'test_acc': test_acc, 'test_loss': test_loss, 'test_acc_top5': test_acc_top5})
 
         # save the best model
         if test_acc > best_acc:

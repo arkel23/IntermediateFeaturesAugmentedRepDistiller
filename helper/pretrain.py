@@ -6,9 +6,10 @@ import torch
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from .util import AverageMeter
+import wandb
 
-
-def init(model_s, model_t, init_modules, criterion, train_loader, logger, opt):
+#def init(model_s, model_t, init_modules, criterion, train_loader, logger, opt):
+def init(model_s, model_t, init_modules, criterion, train_loader, opt):
     model_t.eval()
     model_s.eval()
     init_modules.train()
@@ -86,7 +87,8 @@ def init(model_s, model_t, init_modules, criterion, train_loader, logger, opt):
             end = time.time()
 
         # end of epoch
-        logger.log_value('init_train_loss', losses.avg, epoch)
+        #logger.log_value('init_train_loss', losses.avg, epoch)
+        wandb.log({'init_train_loss': losses.avg})
         print('Epoch: [{0}/{1}]\t'
               'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
               'losses: {losses.val:.3f} ({losses.avg:.3f})'.format(
