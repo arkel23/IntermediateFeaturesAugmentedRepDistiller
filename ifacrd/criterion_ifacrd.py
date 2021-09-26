@@ -31,8 +31,9 @@ class IFACRDLoss(nn.Module):
             layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
             in_features=opt.t_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
         
-        if opt.cont_no_l != 1:
-            self.rescaler = MultiScaleToSingleScaleHead(opt, model_t)
+        #if opt.cont_no_l != 1:
+        #    self.rescaler = MultiScaleToSingleScaleHead(opt, model_t)
+        self.rescaler = MultiScaleToSingleScaleHead(opt, model_t)
         self.cont_no_l = opt.cont_no_l
         
         self.criterion = SupConLoss(temperature=opt.nce_t, base_temperature=opt.nce_t, contrast_mode='all')
@@ -47,16 +48,22 @@ class IFACRDLoss(nn.Module):
         """
         f_s = self.embed_s(f_s)
         
+        '''
         if self.cont_no_l == 1:
             f_t = f_t[-1].detach()
             f_t = self.embed_t(f_t)
             z = torch.cat([f_s.unsqueeze(1), f_t.unsqueeze(1)], dim=1)
         else:
+            #f_t = f_t[-self.cont_no_l:]
             f_t = self.rescaler(f_t)
-            f_t = f_t[-self.cont_no_l:]
             f_t = [self.embed_t(feat) for feat in f_t]
             z = torch.cat([f_s.unsqueeze(1), torch.stack(f_t, dim=1)], dim=1)
-        
+        '''
+        f_t = f_t[-self.cont_no_l:]
+        f_t = self.rescaler(f_t)
+        f_t = [self.embed_t(feat) for feat in f_t]
+       
+        z = torch.cat([f_s.unsqueeze(1), torch.stack(f_t, dim=1)], dim=1)     
         loss = self.criterion(F.normalize(z, dim=2))
         return loss 
 
@@ -65,10 +72,10 @@ class MultiScaleToSingleScaleHead(nn.Module):
     def __init__(self, opt, model):
         super().__init__()
         
-        original_dimensions = self.get_reduction_dims(model, opt.image_size)
+        original_dimensions = self.get_reduction_dims(model, opt.image_size, opt.cont_no_l)
         final_dim = original_dimensions[-1]
         
-        if opt.model_t not in []:            
+        if opt.model_t not in []: # placeholder in case includes vits        
             self.rescaling_head = nn.ModuleList([
                 ProjectionMLPHead(
                     layer_norm=opt.rs_ln, no_layers=opt.rs_no_l, hidden_size=opt.rs_hid_dim, 
@@ -78,11 +85,11 @@ class MultiScaleToSingleScaleHead(nn.Module):
             self.rescaling_head = nn.ModuleList([
                 nn.Identity() for _ in original_dimensions])
             
-    def get_reduction_dims(self, model, image_size):
+    def get_reduction_dims(self, model, image_size, no_layers):
         img = torch.rand(2, 3, image_size, image_size)
         out = model(img, classify_only=False)
         dims = [layer_output.size(1) for layer_output in out[:-1]]
-        return dims
+        return dims[-no_layers:]
     
     def forward(self, x):
         return [self.rescaling_head[i](features.detach()) for i, features in enumerate(x)]

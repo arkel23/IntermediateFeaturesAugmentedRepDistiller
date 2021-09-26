@@ -6,7 +6,6 @@ from __future__ import print_function
 
 import os
 import argparse
-import socket
 import time
 
 import wandb
@@ -16,13 +15,13 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 
 
-from models import model_dict, model_extractor
+from models import model_extractor
 from models.util import Embed, ConvReg, LinearEmbed
 from models.util import Connector, Translator, Paraphraser
 
 from dataset.cifar100 import get_cifar100_dataloaders, get_cifar100_dataloaders_sample
 
-from helper.util import adjust_learning_rate
+from helper.util import adjust_learning_rate,count_params_module_list, save_model, summary_stats
 
 from distiller_zoo import DistillKL, HintLoss, Attention, Similarity, Correlation, VIDLoss, RKDLoss
 from distiller_zoo import PKT, ABLoss, FactorTransfer, KDSVD, FSP, NSTLoss
@@ -34,9 +33,7 @@ from helper.pretrain import init
 
 
 def parse_option():
-
-    hostname = socket.gethostname()
-
+    
     parser = argparse.ArgumentParser('argument for training')
 
     parser.add_argument('--print_freq', type=int, default=100, help='print frequency')
@@ -49,7 +46,7 @@ def parse_option():
     parser.add_argument('--init_epochs', type=int, default=30, help='init training for two-stage methods')
 
     # optimization
-    parser.add_argument('--learning_rate', type=float, default=0.05, help='learning rate')
+    parser.add_argument('--base_lr', type=float, default=0.2, help='base learning rate to scale based on batch size')
     parser.add_argument('--lr_decay_epochs', type=str, default='150,180,210', help='where to decay lr, can be a list')
     parser.add_argument('--lr_decay_rate', type=float, default=0.1, help='decay rate for learning rate')
     parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
@@ -87,6 +84,8 @@ def parse_option():
     parser.add_argument('--nce_m', default=0.5, type=float, help='momentum for non-parametric updates')
     
     # IFACRD distillation
+    parser.add_argument('--layers', type=str, default='last', choices=['all', 'blocks', 'last'], 
+                        help='features from last layers or blocks ends')
     parser.add_argument('--cont_no_l', default=2, type=int, 
                         help='no of layers from teacher to use to build contrastive batch')
     
@@ -107,18 +106,19 @@ def parse_option():
 
     opt = parser.parse_args()
 
+    # set layers argument to blocks when using any method that is not ifacrd
+    if opt.distill != 'ifacrd':
+        opt.layers = 'default'
+        opt.cont_no_l = 0
+
     # set different learning rate from these 4 models
     if opt.model_s in ['MobileNetV2', 'ShuffleV1', 'ShuffleV2']:
-        opt.learning_rate = 0.01
+        opt.base_lr = opt.base_lr / 5 # base_lr 0.04 and with bs=64 > lr=0.01
 
-    # set the path according to the environment
-    if hostname.startswith('visiongpu'):
-        opt.model_path = '/path/to/my/student_model'
-        opt.tb_path = '/path/to/my/student_tensorboards'
-    else:
-        opt.model_path = './save/student_model'
-        opt.tb_path = './save/student_tensorboards'
+    opt.learning_rate = opt.base_lr * (opt.batch_size / 256)
 
+    opt.model_path = './save/student_model'
+    
     iterations = opt.lr_decay_epochs.split(',')
     opt.lr_decay_epochs = list([])
     for it in iterations:
@@ -127,23 +127,20 @@ def parse_option():
     opt.model_t = get_teacher_name(opt.path_t)
 
     if opt.distill == 'ifacrd':
-        opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_lr{}wd{}_temp{}_contl{}_rsl{}hd{}ln{}_pjl{}out{}hd{}ln{}_{}'.format(
+        opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_contl{}{}_rsl{}hd{}ln{}_pjl{}out{}hd{}ln{}_{}'.format(
             opt.model_s, opt.model_t, opt.dataset, opt.distill, opt.gamma, opt.alpha, opt.beta, opt.batch_size, 
-            opt.learning_rate, opt.weight_decay, opt.nce_t, opt.cont_no_l, opt.rs_no_l, opt.rs_hid_dim, opt.rs_ln, 
+            opt.base_lr, opt.weight_decay, opt.nce_t, opt.cont_no_l, opt.layers, opt.rs_no_l, opt.rs_hid_dim, opt.rs_ln, 
             opt.proj_no_l, opt.feat_dim, opt.proj_hid_dim, opt.proj_ln, opt.trial)
     else:
-        opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_lr{}wd{}_temp{}_{}'.format(
+        opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_{}'.format(
             opt.model_s, opt.model_t, opt.dataset, opt.distill, opt.gamma, opt.alpha, opt.beta, opt.batch_size,
-            opt.learning_rate, opt.weight_decay, opt.nce_t, opt.trial)
-
-    #opt.tb_folder = os.path.join(opt.tb_path, opt.model_name)
-    #if not os.path.isdir(opt.tb_folder):
-    #    os.makedirs(opt.tb_folder)
+            opt.base_lr, opt.weight_decay, opt.nce_t, opt.trial)
 
     opt.save_folder = os.path.join(opt.model_path, opt.model_name)
     if not os.path.isdir(opt.save_folder):
         os.makedirs(opt.save_folder)
 
+    print(opt)
     return opt
 
 
@@ -156,26 +153,22 @@ def get_teacher_name(model_path):
         return segments[0] + '_' + segments[1] + '_' + segments[2]
 
 
-def load_teacher(model_path, n_cls):
+def load_teacher(model_path, n_cls, layers):
     print('==> loading teacher model')
     model_t = get_teacher_name(model_path)
-    #model = model_dict[model_t](num_classes=n_cls)
-    #model = model_extractor(model_t, num_classes=n_cls, state_dict_path=model_path)
-    model = model_extractor(model_t, num_classes=n_cls)
+    model = model_extractor(model_t, num_classes=n_cls, layers=layers)
     model.load_state_dict(torch.load(model_path)['model'])
     print('==> done')
     return model
 
 
 def main():
+    time_start = time.time()
     best_acc = 0
+    max_memory = 0
 
     opt = parse_option()
-    print(opt)
     
-    wandb.init(config=opt)
-    wandb.run.name = '{}'.format(opt.model_name)
-
     # dataloader
     if opt.dataset == 'cifar100':
         if opt.distill in ['crd']:
@@ -192,15 +185,12 @@ def main():
         raise NotImplementedError(opt.dataset)
 
     # model
-    model_t = load_teacher(opt.path_t, n_cls)
-    #model_s = model_dict[opt.model_s](num_classes=n_cls)
-    model_s = model_extractor(opt.model_s, num_classes=n_cls)
+    model_t = load_teacher(opt.path_t, n_cls, opt.layers)
+    model_s = model_extractor(opt.model_s, num_classes=n_cls, layers=opt.layers)
 
-    data = torch.randn(2, 3, 32, 32)
+    data = torch.randn(2, 3, opt.image_size, opt.image_size)
     model_t.eval()
     model_s.eval()
-    #feat_t, _ = model_t(data, is_feat=True)
-    #feat_s, _ = model_s(data, is_feat=True)
     out_t = model_t(data, classify_only=False)
     out_s = model_s(data, classify_only=False)
     feat_t = out_t[:-1]
@@ -326,6 +316,9 @@ def main():
         module_list.cuda()
         criterion_list.cuda()
         cudnn.benchmark = True
+        
+    wandb.init(config=opt)
+    wandb.run.name = '{}'.format(opt.model_name)
 
     # validate teacher accuracy
     teacher_acc, _, _ = validate(val_loader, model_t, criterion_cls, opt)
@@ -337,51 +330,39 @@ def main():
         adjust_learning_rate(epoch, opt, optimizer)
         print("==> training...")
 
-        time1 = time.time()
         train_acc, train_loss = train(epoch, train_loader, module_list, criterion_list, optimizer, opt)
-        time2 = time.time()
-        print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
-
         wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss})
 
         test_acc, test_acc_top5, test_loss = validate(val_loader, model_s, criterion_cls, opt)
-
         wandb.log({'test_acc': test_acc, 'test_loss': test_loss, 'test_acc_top5': test_acc_top5})
 
         # save the best model
         if test_acc > best_acc:
             best_acc = test_acc
-            state = {
-                'epoch': epoch,
-                'model': model_s.state_dict(),
-                'best_acc': best_acc,
-            }
-            save_file = os.path.join(opt.save_folder, '{}_best.pth'.format(opt.model_s))
-            print('saving the best model!')
-            torch.save(state, save_file)
-
+            best_epoch = epoch
+            save_model(opt, model_s, epoch, test_acc, mode='best', vanilla=False)
         # regular saving
         if epoch % opt.save_freq == 0:
-            print('==> Saving...')
-            state = {
-                'epoch': epoch,
-                'model': model_s.state_dict(),
-                'accuracy': test_acc,
-            }
-            save_file = os.path.join(opt.save_folder, 'ckpt_epoch_{epoch}.pth'.format(epoch=epoch))
-            torch.save(state, save_file)
+            save_model(opt, model_s, epoch, test_acc, mode='epoch', vanilla=False)
+        # VRAM memory consumption
+        curr_max_memory = torch.cuda.max_memory_reserved() / (1024 ** 3)
+        if curr_max_memory > max_memory:
+            max_memory = curr_max_memory
+    
+    # save last model     
+    save_model(opt, model_s, epoch, test_acc, mode='last', vanilla=False)
 
-    # This best accuracy is only for printing purpose.
-    # The results reported in the paper/README is from the last epoch. 
-    print('best accuracy:', best_acc)
-
-    # save model
-    state = {
-        'opt': opt,
-        'model': model_s.state_dict(),
-    }
-    save_file = os.path.join(opt.save_folder, '{}_last.pth'.format(opt.model_s))
-    torch.save(state, save_file)
+    # summary stats
+    time_end = time.time()
+    time_total = time_end - time_start
+    
+    if opt.distill == 'connector':
+        module_list.append(connector)
+    no_params_modules = count_params_module_list(module_list)
+    no_params_criterion = count_params_module_list(criterion_list)
+    no_params = no_params_modules + no_params_criterion
+    
+    summary_stats(opt.epochs, time_total, best_acc, best_epoch, max_memory, no_params)
 
 
 if __name__ == '__main__':

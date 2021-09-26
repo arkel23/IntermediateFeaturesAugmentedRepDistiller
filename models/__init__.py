@@ -33,9 +33,9 @@ model_dict = {
     'ShuffleV2': ShuffleV2,
 }
 
-def model_extractor(model_name, num_classes):#, state_dict_path=False):
+def model_extractor(model_name, num_classes, layers='default'):#, state_dict_path=False):
     m = model_dict[model_name](num_classes=num_classes)
     #if state_dict_path:
     #    m.load_state_dict(torch.load(state_dict_path)['model'])
-    model = Extractor(m, model_name)
+    model = Extractor(m, model_name, layers)
     return model
