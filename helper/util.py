@@ -4,6 +4,30 @@ import os
 import torch
 import wandb
 import numpy as np
+from timm.scheduler import create_scheduler
+from timm.optim import create_optimizer
+
+def return_optimizer_scheduler(opt, model):
+
+    if opt.sched == 'step':
+        opt.warmup_lr = opt.lr
+    elif opt.sched == 'cosine':
+        opt.warmup_lr = 1e-6
+
+    opt.opt_eps = 1e-8
+    opt.opt_betas = None
+    
+    opt.lr_noise = None
+    opt.lr_noise_pct = 0.67
+    opt.lr_noise_std = 1.0
+    opt.min_lr = 1e-5
+    opt.cooldown_epochs = 10
+    opt.patience_epochs = 10
+    
+    optimizer = create_optimizer(opt, model)
+    lr_scheduler, _ = create_scheduler(opt, optimizer)
+    
+    return optimizer, lr_scheduler
 
 def summary_stats(epochs, time_total, best_acc, best_epoch, max_memory, no_params):    
     time_avg = time_total / epochs
@@ -71,24 +95,6 @@ def count_params_module_list(module_list):
 
 def count_params_single(model):
     return sum([p.numel() for p in model.parameters()])
-
-
-def adjust_learning_rate_new(epoch, optimizer, LUT):
-    """
-    new learning rate schedule according to RotNet
-    """
-    lr = next((lr for (max_epoch, lr) in LUT if max_epoch > epoch), LUT[-1][1])
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-
-
-def adjust_learning_rate(epoch, opt, optimizer):
-    """Sets the learning rate to the initial LR decayed by decay rate every steep step"""
-    steps = np.sum(epoch > np.asarray(opt.lr_decay_epochs))
-    if steps > 0:
-        new_lr = opt.learning_rate * (opt.lr_decay_rate ** steps)
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = new_lr
 
 
 class AverageMeter(object):

@@ -14,9 +14,8 @@ from models import model_extractor
 
 from dataset.build_dataset import build_dataloader
 
-from helper.util import adjust_learning_rate, count_params_single, save_model, summary_stats
+from helper.util import count_params_single, save_model, summary_stats, return_optimizer_scheduler
 from helper.loops import train_vanilla as train, validate
-
 
 def parse_option():
     
@@ -30,12 +29,17 @@ def parse_option():
     parser.add_argument('--epochs', type=int, default=240, help='number of training epochs')
 
     # optimization
+    parser.add_argument('--opt', default='sgd', type=str, help='Optimizer (default: "sgd"')
     parser.add_argument('--base_lr', type=float, default=0.2, help='base learning rate to scale based on batch size')
-    parser.add_argument('--lr_decay_epochs', type=str, default='150,180,210', help='where to decay lr, can be a list')
-    parser.add_argument('--lr_decay_rate', type=float, default=0.1, help='decay rate for learning rate')
-    parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
     parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
-
+    parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
+    parser.add_argument('--clip_grad', type=float, default=None, help='Clip gradient norm (default: None, no clipping)')
+    
+    parser.add_argument('--sched', default='step', type=str, help='LR scheduler (default: "step", also cosine')
+    parser.add_argument('--decay_rate', type=float, default=0.1, help='decay rate for learning rate')
+    parser.add_argument('--decay_epochs', type=float, default=30, help='epoch interval to decay LR')
+    parser.add_argument('--warmup_epochs', type=int, default=150, help='epochs to warmup LR, if scheduler supports')
+    
     # dataset
     parser.add_argument('--model', type=str, default='resnet110',
                         choices=['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110',
@@ -52,15 +56,10 @@ def parse_option():
     if opt.model in ['MobileNetV2', 'ShuffleV1', 'ShuffleV2']:
         opt.base_lr = opt.base_lr / 5 # base_lr 0.04 and with bs=64 > lr=0.01
 
-    opt.learning_rate = opt.base_lr * (opt.batch_size / 256)
-
+    opt.lr = opt.base_lr * (opt.batch_size / 256)
+    
     # set the path according to the environment
     opt.model_path = './save/models'
-
-    iterations = opt.lr_decay_epochs.split(',')
-    opt.lr_decay_epochs = list([])
-    for it in iterations:
-        opt.lr_decay_epochs.append(int(it))
 
     opt.model_name = '{}_{}_lr_{}_decay_{}_trial_{}'.format(opt.model, opt.dataset, opt.base_lr,
                                                             opt.weight_decay, opt.trial)
@@ -86,11 +85,8 @@ def main():
     # model
     model = model_extractor(opt.model, num_classes=n_cls)
 
-    # optimizer
-    optimizer = optim.SGD(model.parameters(),
-                          lr=opt.learning_rate,
-                          momentum=opt.momentum,
-                          weight_decay=opt.weight_decay)
+    # optimizer and scheduler
+    optimizer, lr_scheduler = return_optimizer_scheduler(opt, model)
 
     criterion = nn.CrossEntropyLoss()
 
@@ -104,12 +100,11 @@ def main():
 
     # routine
     for epoch in range(1, opt.epochs + 1):
-
-        adjust_learning_rate(epoch, opt, optimizer)
+        
         print("==> training...")
-
+        lr_scheduler.step(epoch)
         train_acc, train_loss = train(epoch, train_loader, model, criterion, optimizer, opt)
-        wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss})
+        wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss, 'lr': lr_scheduler.get_epoch_values(epoch)[0]})
 
         test_acc, test_acc_top5, test_loss = validate(val_loader, model, criterion, opt)
         wandb.log({'test_acc': test_acc, 'test_loss': test_loss, 'test_acc_top5': test_acc_top5})
