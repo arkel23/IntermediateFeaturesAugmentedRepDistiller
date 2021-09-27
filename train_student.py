@@ -19,7 +19,7 @@ from models import model_extractor
 from models.util import Embed, ConvReg, LinearEmbed
 from models.util import Connector, Translator, Paraphraser
 
-from dataset.cifar100 import get_cifar100_dataloaders, get_cifar100_dataloaders_sample
+from dataset.build_dataset import build_dataloader
 
 from helper.util import adjust_learning_rate,count_params_module_list, save_model, summary_stats
 
@@ -53,7 +53,7 @@ def parse_option():
     parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 
     # dataset
-    parser.add_argument('--dataset', type=str, default='cifar100', choices=['cifar100'], help='dataset')
+    parser.add_argument('--dataset', type=str, default='cifar100', choices=['cifar10', 'cifar100'], help='dataset')
 
     # model
     parser.add_argument('--model_s', type=str, default='resnet8',
@@ -95,7 +95,7 @@ def parse_option():
                         help='dimension of rescaler mlp hidden layer space')
     parser.add_argument('--rs_ln', action='store_true', help='Use rescaler mlp with LN instead of BN')
     
-    parser.add_argument('--proj_no_l', default=1, choices=[1, 2, 3], type=int, 
+    parser.add_argument('--proj_no_l', default=2, choices=[1, 2, 3], type=int, 
                         help='no of layers for projector mlp')
     parser.add_argument('--proj_hid_dim', default=128, type=int, 
                         help='dimension of projector mlp hidden layer space')
@@ -170,20 +170,8 @@ def main():
     opt = parse_option()
     
     # dataloader
-    if opt.dataset == 'cifar100':
-        if opt.distill in ['crd']:
-            train_loader, val_loader, n_data = get_cifar100_dataloaders_sample(batch_size=opt.batch_size,
-                                                                               num_workers=opt.num_workers,
-                                                                               k=opt.nce_k,
-                                                                               mode=opt.mode)
-        else:
-            train_loader, val_loader, n_data = get_cifar100_dataloaders(batch_size=opt.batch_size,
-                                                                        num_workers=opt.num_workers,
-                                                                        is_instance=True)
-        n_cls = 100
-    else:
-        raise NotImplementedError(opt.dataset)
-
+    train_loader, val_loader, n_cls, n_data = build_dataloader(opt, vanilla=False)
+    
     # model
     model_t = load_teacher(opt.path_t, n_cls, opt.layers)
     model_s = model_extractor(opt.model_s, num_classes=n_cls, layers=opt.layers)

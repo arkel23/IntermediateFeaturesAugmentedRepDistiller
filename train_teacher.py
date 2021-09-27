@@ -12,7 +12,7 @@ import torch.backends.cudnn as cudnn
 
 from models import model_extractor
 
-from dataset.cifar100 import get_cifar100_dataloaders
+from dataset.build_dataset import build_dataloader
 
 from helper.util import adjust_learning_rate, count_params_single, save_model, summary_stats
 from helper.loops import train_vanilla as train, validate
@@ -42,7 +42,7 @@ def parse_option():
                                  'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2',
                                  'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet50',
                                  'MobileNetV2', 'ShuffleV1', 'ShuffleV2', ])
-    parser.add_argument('--dataset', type=str, default='cifar100', choices=['cifar100'], help='dataset')
+    parser.add_argument('--dataset', type=str, default='cifar100', choices=['cifar10', 'cifar100'], help='dataset')
 
     parser.add_argument('-t', '--trial', type=int, default=0, help='the experiment id')
 
@@ -81,12 +81,8 @@ def main():
     opt = parse_option()
 
     # dataloader
-    if opt.dataset == 'cifar100':
-        train_loader, val_loader = get_cifar100_dataloaders(batch_size=opt.batch_size, num_workers=opt.num_workers)
-        n_cls = 100
-    else:
-        raise NotImplementedError(opt.dataset)
-
+    train_loader, val_loader, n_cls = build_dataloader(opt)
+    
     # model
     model = model_extractor(opt.model, num_classes=n_cls)
 
