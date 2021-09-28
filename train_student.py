@@ -101,7 +101,7 @@ def parse_option():
                         help='dimension of rescaler mlp hidden layer space')
     parser.add_argument('--rs_ln', action='store_true', help='Use rescaler mlp with LN instead of BN')
     
-    parser.add_argument('--proj_no_l', default=2, choices=[1, 2, 3], type=int, 
+    parser.add_argument('--proj_no_l', default=1, choices=[1, 2, 3], type=int, 
                         help='no of layers for projector mlp')
     parser.add_argument('--proj_hid_dim', default=128, type=int, 
                         help='dimension of projector mlp hidden layer space')
