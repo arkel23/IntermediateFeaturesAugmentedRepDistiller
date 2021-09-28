@@ -52,10 +52,11 @@ def parse_option():
     parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
     parser.add_argument('--clip_grad', type=float, default=None, help='Clip gradient norm (default: None, no clipping)')
     
-    parser.add_argument('--sched', default='step', type=str, help='LR scheduler (default: "step", also cosine')
+    parser.add_argument('--sched', default='warmup_step', type=str, choices=['cosine', 'step', 'warmup_step'],
+                        help='LR scheduler (default: "warmup_step"')
+    parser.add_argument('--warmup_epochs', type=int, default=5, help='epochs to warmup LR, if scheduler supports')
     parser.add_argument('--decay_rate', type=float, default=0.1, help='decay rate for learning rate')
     parser.add_argument('--decay_epochs', type=float, default=30, help='epoch interval to decay LR')
-    parser.add_argument('--warmup_epochs', type=int, default=150, help='epochs to warmup LR, if scheduler supports')
     
     # dataset
     parser.add_argument('--dataset', type=str, default='cifar100', choices=['cifar10', 'cifar100'], help='dataset')
@@ -121,6 +122,9 @@ def parse_option():
         opt.base_lr = opt.base_lr / 5 # base_lr 0.04 and with bs=64 > lr=0.01
 
     opt.lr = opt.base_lr * (opt.batch_size / 256)
+    
+    if opt.sched == 'warmup_step' and opt.warmup_epochs == 5:
+        opt.warmup_epochs = 150
     
     opt.model_path = './save/student_model'
     
@@ -322,12 +326,11 @@ def main():
     # routine
     for epoch in range(1, opt.epochs + 1):
 
-        #adjust_learning_rate(epoch, opt, optimizer)
-        print("==> training...")
-        lr_scheduler.step(epoch)
+        lr_scheduler.step(epoch)        
+        print("==> Training...Epoch: {} | LR: {}".format(epoch, optimizer.param_groups[0]['lr']))
         train_acc, train_loss = train(epoch, train_loader, module_list, criterion_list, optimizer, opt)
-        wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss, 'lr': lr_scheduler.get_epoch_values(epoch)[0]})
-
+        wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss})
+        
         test_acc, test_acc_top5, test_loss = validate(val_loader, model_s, criterion_cls, opt)
         wandb.log({'test_acc': test_acc, 'test_loss': test_loss, 'test_acc_top5': test_acc_top5})
 

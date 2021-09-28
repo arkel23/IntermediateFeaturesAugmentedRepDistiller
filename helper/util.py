@@ -1,11 +1,34 @@
 from __future__ import print_function
 
 import os
+import math
 import torch
+import torch.optim as optim
 import wandb
 import numpy as np
 from timm.scheduler import create_scheduler
 from timm.optim import create_optimizer
+
+class Scheduler():
+    def __init__(self, opt, optimizer):
+        self.opt = opt
+        self.optimizer = optimizer
+
+    def step(self, epoch):
+        new_lr = self.get_epoch_values(epoch)
+        self.adjust_learning_rate(new_lr)
+        
+    def get_epoch_values(self, epoch):
+        stage = math.ceil((epoch - self.opt.warmup_epochs) / self.opt.decay_epochs)
+        if stage < 1:
+            return self.opt.lr
+        else:
+            return self.opt.lr * (self.opt.decay_rate ** stage)
+        
+    def adjust_learning_rate(self, new_lr):
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = new_lr
+
 
 def return_optimizer_scheduler(opt, model):
 
@@ -13,7 +36,7 @@ def return_optimizer_scheduler(opt, model):
         opt.warmup_lr = opt.lr
     elif opt.sched == 'cosine':
         opt.warmup_lr = 1e-6
-
+    
     opt.opt_eps = 1e-8
     opt.opt_betas = None
     
@@ -25,9 +48,19 @@ def return_optimizer_scheduler(opt, model):
     opt.patience_epochs = 10
     
     optimizer = create_optimizer(opt, model)
-    lr_scheduler, _ = create_scheduler(opt, optimizer)
+    #optimizer = optim.SGD(model.parameters(),
+    #                      lr=opt.lr,
+    #                      momentum=opt.momentum,
+    #                     weight_decay=opt.weight_decay)
+    print(optimizer)
+    
+    if opt.sched == 'warmup_step':
+        lr_scheduler = Scheduler(opt, optimizer)
+    else:
+        lr_scheduler, _ = create_scheduler(opt, optimizer)
     
     return optimizer, lr_scheduler
+
 
 def summary_stats(epochs, time_total, best_acc, best_epoch, max_memory, no_params):    
     time_avg = time_total / epochs
