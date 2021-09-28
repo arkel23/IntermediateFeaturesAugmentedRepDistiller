@@ -5,5 +5,5 @@
 #cd ..
 conda create -n ifacrd
 conda activate ifacrd
-conda install -c pytorch-nightly pytorch=1.10.0 torchvision=0.11.0
+conda install -c pytorch-nightly pytorch torchvision
 pip install -r requirements.txt
