@@ -52,7 +52,6 @@ def return_optimizer_scheduler(opt, model):
     #                      lr=opt.lr,
     #                      momentum=opt.momentum,
     #                     weight_decay=opt.weight_decay)
-    print(optimizer)
     
     if opt.sched == 'warmup_step':
         lr_scheduler = Scheduler(opt, optimizer)
