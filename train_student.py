@@ -120,8 +120,6 @@ def parse_option():
     # set different learning rate from these 4 models
     if opt.model_s in ['MobileNetV2', 'ShuffleV1', 'ShuffleV2']:
         opt.base_lr = opt.base_lr / 5 # base_lr 0.04 and with bs=64 > lr=0.01
-    if opt.model == 'ShuffleV2':
-        raise NotImplementedError
 
     opt.lr = opt.base_lr * (opt.batch_size / 256)
     
@@ -130,12 +128,10 @@ def parse_option():
     
     opt.model_path = './save/student_model'
     
-    #iterations = opt.lr_decay_epochs.split(',')
-    #opt.lr_decay_epochs = list([])
-    #for it in iterations:
-    #    opt.lr_decay_epochs.append(int(it))
-
     opt.model_t = get_teacher_name(opt.path_t)
+
+    if opt.model_s == 'ShuffleV2' or opt.model_t == 'ShuffleV2':
+        raise NotImplementedError
 
     if opt.distill == 'ifacrd':
         opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_contl{}{}_rsl{}hd{}ln{}_pjl{}out{}hd{}ln{}_{}'.format(
@@ -305,13 +301,8 @@ def main():
     criterion_list.append(criterion_div)    # KL divergence loss, original knowledge distillation
     criterion_list.append(criterion_kd)     # other knowledge distillation loss
 
-    # optimizer
-    #optimizer = optim.SGD(trainable_list.parameters(),
-    #                      lr=opt.learning_rate,
-    #                      momentum=opt.momentum,
-    #                      weight_decay=opt.weight_decay)
+    # optimizer and lr
     optimizer, lr_scheduler = return_optimizer_scheduler(opt, trainable_list)
-
 
     # append teacher after optimizer to avoid weight_decay
     module_list.append(model_t)
