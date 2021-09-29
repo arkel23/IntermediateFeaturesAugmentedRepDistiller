@@ -231,7 +231,7 @@ class Extractor(nn.Module):
                     'layer3.3.relu_48': 'layerminus1',
                     'linear': 'layerminus0' 
                 }
-            elif model_name == 'ShuffleV1':
+            elif model_name == 'ShuffleV2':
                 return_nodes = {
                     'layer3.0.relu_27': 'layerminus10',
                     'layer3.0.relu_28': 'layerminus9',
@@ -371,7 +371,7 @@ class Extractor(nn.Module):
                     'layer3.3.relu_48': 'layerminus2',
                     'linear': 'layerminus0' 
                 }
-            elif model_name == 'ShuffleV1':
+            elif model_name == 'ShuffleV2':
                 return_nodes = {
                     'relu': 'layerminus5',
                     'layer1.3.shuffle.reshape_3': 'layerminus4',
@@ -538,7 +538,7 @@ class Extractor(nn.Module):
                     'view_16': 'layerminus1',
                     'linear': 'layerminus0' 
                 }
-            elif model_name == 'ShuffleV1':
+            elif model_name == 'ShuffleV2':
                 return_nodes = {
                     'relu': 'layerminus5',
                     'layer1.3.shuffle.reshape_3': 'layerminus4',
