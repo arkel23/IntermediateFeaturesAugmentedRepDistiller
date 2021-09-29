@@ -256,6 +256,7 @@ def main():
         # add this as some parameters in VIDLoss need to be updated
         trainable_list.append(criterion_kd)
     elif opt.distill == 'abound':
+        raise NotImplementedError
         s_shapes = [f.shape for f in feat_s[1:-1]]
         t_shapes = [f.shape for f in feat_t[1:-1]]
         connector = Connector(s_shapes, t_shapes)
@@ -354,8 +355,8 @@ def main():
     time_end = time.time()
     time_total = time_end - time_start
     
-    if opt.distill == 'connector':
-        module_list.append(connector)
+    #if opt.distill == 'abound':
+    #    module_list.append(connector)
     no_params_modules = count_params_module_list(module_list)
     no_params_criterion = count_params_module_list(criterion_list)
     no_params = no_params_modules + no_params_criterion
