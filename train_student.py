@@ -66,7 +66,7 @@ def parse_option():
                         choices=['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110',
                                  'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2',
                                  'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet50',
-                                 'MobileNetV2', 'ShuffleV1''])
+                                 'MobileNetV2', 'ShuffleV1', 'ShuffleV2'])
     parser.add_argument('--path_t', type=str, default=None, help='teacher model snapshot')
 
     # distillation
@@ -120,6 +120,8 @@ def parse_option():
     # set different learning rate from these 4 models
     if opt.model_s in ['MobileNetV2', 'ShuffleV1', 'ShuffleV2']:
         opt.base_lr = opt.base_lr / 5 # base_lr 0.04 and with bs=64 > lr=0.01
+    if opt.model == 'ShuffleV2':
+        raise NotImplementedError
 
     opt.lr = opt.base_lr * (opt.batch_size / 256)
     
@@ -269,6 +271,7 @@ def main():
         # classification
         module_list.append(connector)
     elif opt.distill == 'factor':
+        raise NotImplementedError
         s_shape = feat_s[-2].shape
         t_shape = feat_t[-2].shape
         paraphraser = Paraphraser(t_shape)
@@ -284,6 +287,7 @@ def main():
         module_list.append(paraphraser)
         trainable_list.append(translator)
     elif opt.distill == 'fsp':
+        raise NotImplementedError
         s_shapes = [s.shape for s in feat_s[:-1]]
         t_shapes = [t.shape for t in feat_t[:-1]]
         criterion_kd = FSP(s_shapes, t_shapes)

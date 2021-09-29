@@ -46,7 +46,7 @@ def parse_option():
                         choices=['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110',
                                  'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2',
                                  'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet50',
-                                 'MobileNetV2', 'ShuffleV1', ])
+                                 'MobileNetV2', 'ShuffleV1', 'ShuffleV2'])
     parser.add_argument('--dataset', type=str, default='cifar100', choices=['cifar10', 'cifar100'], help='dataset')
 
     parser.add_argument('-t', '--trial', type=int, default=0, help='the experiment id')
@@ -56,6 +56,8 @@ def parse_option():
     # set different learning rate from these 4 models
     if opt.model in ['MobileNetV2', 'ShuffleV1', 'ShuffleV2']:
         opt.base_lr = opt.base_lr / 5 # base_lr 0.04 and with bs=64 > lr=0.01
+    if opt.model == 'ShuffleV2':
+        raise NotImplementedError
 
     opt.lr = opt.base_lr * (opt.batch_size / 256)
     
