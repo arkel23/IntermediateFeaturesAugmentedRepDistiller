@@ -366,7 +366,7 @@ class Extractor(nn.Module):
             elif model_name == 'ShuffleV1':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.3.relu_12.': 'layerminus4',
+                    'layer1.3.relu_12': 'layerminus4',
                     'layer2.7.relu_36': 'layerminus3',
                     'layer3.3.relu_48': 'layerminus2',
                     'linear': 'layerminus0' 
@@ -376,7 +376,7 @@ class Extractor(nn.Module):
                     'relu': 'layerminus5',
                     'layer1.3.shuffle.reshape_3': 'layerminus4',
                     'layer2.7.shuffle.reshape_11': 'layerminus3',
-                    'layer3.3.relu_48': 'layerminus2',
+                    'layer3.3.shuffle.reshape_15': 'layerminus2',
                     'linear': 'layerminus0'
                 }
             else:
@@ -532,7 +532,7 @@ class Extractor(nn.Module):
             elif model_name == 'ShuffleV1':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.3.relu_12.': 'layerminus4',
+                    'layer1.3.relu_12': 'layerminus4',
                     'layer2.7.relu_36': 'layerminus3',
                     'layer3.3.relu_48': 'layerminus2',
                     'view_16': 'layerminus1',
@@ -543,7 +543,7 @@ class Extractor(nn.Module):
                     'relu': 'layerminus5',
                     'layer1.3.shuffle.reshape_3': 'layerminus4',
                     'layer2.7.shuffle.reshape_11': 'layerminus3',
-                    'layer3.3.relu_48': 'layerminus2',
+                    'layer3.3.shuffle.reshape_15': 'layerminus2',
                     'view_16': 'layerminus1',
                     'linear': 'layerminus0'
                 }
