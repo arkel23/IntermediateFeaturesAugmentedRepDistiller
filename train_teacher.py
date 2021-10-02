@@ -6,7 +6,6 @@ import time
 
 import wandb
 import torch
-import torch.optim as optim
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 
@@ -22,7 +21,6 @@ def parse_option():
     parser = argparse.ArgumentParser('argument for training')
 
     parser.add_argument('--print_freq', type=int, default=100, help='print frequency')
-    parser.add_argument('--tb_freq', type=int, default=500, help='tb frequency')
     parser.add_argument('--save_freq', type=int, default=40, help='save frequency')
     parser.add_argument('--batch_size', type=int, default=64, help='batch_size')
     parser.add_argument('--num_workers', type=int, default=4, help='num of workers to use')
@@ -55,6 +53,11 @@ def parse_option():
 
     opt = parser.parse_args()
     
+    if opt.dataset == 'imagenet':
+        opt.image_size = 224
+    else:
+        opt.image_size = 32
+    
     # set different learning rate from these 4 models
     if opt.model in ['MobileNetV2', 'ShuffleV1', 'ShuffleV2']:
         opt.base_lr = opt.base_lr / 5 # base_lr 0.04 and with bs=64 > lr=0.01
@@ -66,12 +69,10 @@ def parse_option():
     if opt.sched == 'warmup_step' and opt.warmup_epochs == 5:
         opt.warmup_epochs = 150
     
-    opt.model_path = './save/models'
-
-    opt.model_name = '{}_{}_lr_{}_decay_{}_trial_{}'.format(opt.model, opt.dataset, opt.base_lr,
-                                                            opt.weight_decay, opt.trial)
-
-    opt.save_folder = os.path.join(opt.model_path, opt.model_name)
+    opt.model_name = '{}_{}_is{}_bs{}_blr{}_decay_{}_trial_{}'.format(opt.model, opt.dataset, 
+        opt.image_size, opt.batch_size, opt.base_lr, opt.weight_decay, opt.trial)
+    
+    opt.save_folder = os.path.join('save', 'models', opt.model_name)
     if not os.path.isdir(opt.save_folder):
         os.makedirs(opt.save_folder)
 
@@ -106,7 +107,7 @@ def main():
     wandb.run.name = '{}'.format(opt.model_name)
 
     # routine
-    for epoch in range(1, opt.epochs + 1):
+    for epoch in range(1, opt.epochs+1):
         
         lr_scheduler.step(epoch)        
         print("==> Training...Epoch: {} | LR: {}".format(epoch, optimizer.param_groups[0]['lr']))

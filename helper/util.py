@@ -3,11 +3,17 @@ from __future__ import print_function
 import os
 import math
 import torch
-import torch.optim as optim
 import wandb
-import numpy as np
 from timm.scheduler import create_scheduler
 from timm.optim import create_optimizer
+
+def get_model_name(path_model):
+    """parse model name"""
+    segments = path_model.split('/')[-2].split('_')
+    if segments[0] != 'wrn':
+        return segments[0]
+    else:
+        return segments[0] + '_' + segments[1] + '_' + segments[2]
 
 class Scheduler():
     def __init__(self, opt, optimizer):
@@ -48,10 +54,6 @@ def return_optimizer_scheduler(opt, model):
     opt.patience_epochs = 10
     
     optimizer = create_optimizer(opt, model)
-    #optimizer = optim.SGD(model.parameters(),
-    #                      lr=opt.lr,
-    #                      momentum=opt.momentum,
-    #                     weight_decay=opt.weight_decay)
     
     if opt.sched == 'warmup_step':
         lr_scheduler = Scheduler(opt, optimizer)

@@ -106,13 +106,14 @@ def get_imagenet_dataloaders(dataset_path, batch_size=128, num_workers=8, is_ins
     data_folder = dataset_path
 
     train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(32),
+        transforms.RandomResizedCrop(224),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
     ])
     test_transform = transforms.Compose([
-        transforms.Resize(32),
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
     ])
@@ -129,7 +130,8 @@ def get_imagenet_dataloaders(dataset_path, batch_size=128, num_workers=8, is_ins
     train_loader = DataLoader(train_set,
                               batch_size=batch_size,
                               shuffle=True,
-                              num_workers=num_workers)
+                              num_workers=num_workers,
+                              pin_memory=True)
 
     test_set = ImageNet(root=data_folder,
                                  train=False,
@@ -137,7 +139,8 @@ def get_imagenet_dataloaders(dataset_path, batch_size=128, num_workers=8, is_ins
     test_loader = DataLoader(test_set,
                              batch_size=64,
                              shuffle=False,
-                             num_workers=int(num_workers/2))
+                             num_workers=int(num_workers/2),
+                             pin_memory=True)
 
     if is_instance:
         return train_loader, test_loader, n_data
@@ -224,13 +227,14 @@ def get_imagenet_dataloaders_sample(dataset_path, batch_size=128, num_workers=8,
     data_folder = dataset_path
 
     train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(32),
+        transforms.RandomResizedCrop(224),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
     ])
     test_transform = transforms.Compose([
-        transforms.Resize(32),
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
     ])
@@ -246,7 +250,8 @@ def get_imagenet_dataloaders_sample(dataset_path, batch_size=128, num_workers=8,
     train_loader = DataLoader(train_set,
                               batch_size=batch_size,
                               shuffle=True,
-                              num_workers=num_workers)
+                              num_workers=num_workers,
+                              pin_memory=True)
 
     test_set = ImageNet(root=data_folder,
                                  train=False,
@@ -254,6 +259,7 @@ def get_imagenet_dataloaders_sample(dataset_path, batch_size=128, num_workers=8,
     test_loader = DataLoader(test_set,
                              batch_size=64,
                              shuffle=False,
-                             num_workers=int(num_workers/2))
+                             num_workers=int(num_workers/2),
+                             pin_memory=True)
 
     return train_loader, test_loader, n_data

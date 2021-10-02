@@ -164,7 +164,8 @@ def get_tinyimagenet_dataloaders(dataset_path, batch_size=128, num_workers=8, is
     train_loader = DataLoader(train_set,
                               batch_size=batch_size,
                               shuffle=True,
-                              num_workers=num_workers)
+                              num_workers=num_workers,
+                              pin_memory=True)
 
     test_set = TinyImageNet(root=data_folder,
                                  train=False,
@@ -172,7 +173,8 @@ def get_tinyimagenet_dataloaders(dataset_path, batch_size=128, num_workers=8, is
     test_loader = DataLoader(test_set,
                              batch_size=64,
                              shuffle=False,
-                             num_workers=int(num_workers/2))
+                             num_workers=int(num_workers/2),
+                             pin_memory=True)
 
     if is_instance:
         return train_loader, test_loader, n_data
@@ -281,7 +283,8 @@ def get_tinyimagenet_dataloaders_sample(dataset_path, batch_size=128, num_worker
     train_loader = DataLoader(train_set,
                               batch_size=batch_size,
                               shuffle=True,
-                              num_workers=num_workers)
+                              num_workers=num_workers,
+                              pin_memory=True)
 
     test_set = TinyImageNet(root=data_folder,
                                  train=False,
@@ -289,6 +292,7 @@ def get_tinyimagenet_dataloaders_sample(dataset_path, batch_size=128, num_worker
     test_loader = DataLoader(test_set,
                              batch_size=64,
                              shuffle=False,
-                             num_workers=int(num_workers/2))
+                             num_workers=int(num_workers/2),
+                             pin_memory=True)
 
     return train_loader, test_loader, n_data

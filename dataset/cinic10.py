@@ -169,7 +169,8 @@ def get_cinic10_dataloaders(dataset_path, batch_size=128, num_workers=8, is_inst
     train_loader = DataLoader(train_set,
                               batch_size=batch_size,
                               shuffle=True,
-                              num_workers=num_workers)
+                              num_workers=num_workers,
+                              pin_memory=True)
 
     test_set = CINIC10(root=data_folder,
                                  train=False,
@@ -177,7 +178,8 @@ def get_cinic10_dataloaders(dataset_path, batch_size=128, num_workers=8, is_inst
     test_loader = DataLoader(test_set,
                              batch_size=64,
                              shuffle=False,
-                             num_workers=int(num_workers/2))
+                             num_workers=int(num_workers/2),
+                             pin_memory=True)
 
     if is_instance:
         return train_loader, test_loader, n_data
@@ -285,7 +287,8 @@ def get_cinic10_dataloaders_sample(dataset_path, batch_size=128, num_workers=8, 
     train_loader = DataLoader(train_set,
                               batch_size=batch_size,
                               shuffle=True,
-                              num_workers=num_workers)
+                              num_workers=num_workers,
+                              pin_memory=True)
 
     test_set = CINIC10(root=data_folder,
                                  train=False,
@@ -293,6 +296,7 @@ def get_cinic10_dataloaders_sample(dataset_path, batch_size=128, num_workers=8, 
     test_loader = DataLoader(test_set,
                              batch_size=64,
                              shuffle=False,
-                             num_workers=int(num_workers/2))
+                             num_workers=int(num_workers/2),
+                             pin_memory=True)
 
     return train_loader, test_loader, n_data

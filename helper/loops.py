@@ -3,6 +3,7 @@ from __future__ import print_function, division
 import sys
 import time
 import torch
+import numpy as np
 
 from .util import AverageMeter, accuracy
 
@@ -43,9 +44,6 @@ def train_vanilla(epoch, train_loader, model, criterion, optimizer, opt):
         # ===================meters=====================
         batch_time.update(time.time() - end)
         end = time.time()
-
-        # tensorboard logger
-        pass
 
         # print info
         if idx % opt.print_freq == 0:
@@ -275,3 +273,27 @@ def validate(val_loader, model, criterion, opt):
               .format(top1=top1, top5=top5))
 
     return top1.avg, top5.avg, losses.avg
+
+
+def feature_extraction(loader, backbone, opt):
+    feature_vector = []
+    labels_vector = []
+    for idx, (x, y) in enumerate(loader):
+        if torch.cuda.is_available():
+            x = x.cuda()
+
+        # get encoding
+        with torch.no_grad():
+            output = backbone(x, classify_only=False)
+        features = output[-2].detach()
+
+        feature_vector.extend(features.cpu().detach().numpy())
+        labels_vector.extend(y.numpy())
+
+        if idx % opt.print_freq == 0:
+            print(f"Step [{idx}/{len(loader)}]\t Computing features...")
+
+    feature_vector = np.array(feature_vector)
+    labels_vector = np.array(labels_vector)
+    print("Features shape {}".format(feature_vector.shape))
+    return feature_vector, labels_vector

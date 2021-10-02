@@ -10,7 +10,6 @@ import time
 
 import wandb
 import torch
-import torch.optim as optim
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 
@@ -21,7 +20,8 @@ from models.util import Connector, Translator, Paraphraser
 
 from dataset.build_dataset import build_dataloader
 
-from helper.util import count_params_module_list, save_model, summary_stats, return_optimizer_scheduler
+from helper.util import count_params_module_list, save_model, summary_stats
+from helper.util import return_optimizer_scheduler, get_model_name
 
 from distiller_zoo import DistillKL, HintLoss, Attention, Similarity, Correlation, VIDLoss, RKDLoss
 from distiller_zoo import PKT, ABLoss, FactorTransfer, KDSVD, FSP, NSTLoss
@@ -37,10 +37,8 @@ def parse_option():
     parser = argparse.ArgumentParser('argument for training')
 
     parser.add_argument('--print_freq', type=int, default=100, help='print frequency')
-    parser.add_argument('--tb_freq', type=int, default=500, help='tb frequency')
     parser.add_argument('--save_freq', type=int, default=40, help='save frequency')
     parser.add_argument('--batch_size', type=int, default=64, help='batch_size')
-    parser.add_argument('--image_size', type=int, default=32, help='image_size')
     parser.add_argument('--num_workers', type=int, default=4, help='num of workers to use')
     parser.add_argument('--epochs', type=int, default=240, help='number of training epochs')
     parser.add_argument('--init_epochs', type=int, default=30, help='init training for two-stage methods')
@@ -75,7 +73,7 @@ def parse_option():
     parser.add_argument('--distill', type=str, default='kd', choices=['ifacrd', 'kd', 'hint', 'attention', 'similarity',
                                                                       'correlation', 'vid', 'crd', 'kdsvd', 'fsp',
                                                                       'rkd', 'pkt', 'abound', 'factor', 'nst'])
-    parser.add_argument('--trial', type=str, default='1', help='trial id')
+    parser.add_argument('--trial', type=str, default='0', help='trial id')
 
     parser.add_argument('-r', '--gamma', type=float, default=1, help='weight for classification')
     parser.add_argument('-a', '--alpha', type=float, default=0, help='weight balance for KD')
@@ -119,6 +117,11 @@ def parse_option():
         opt.layers = 'default'
         opt.cont_no_l = 0
 
+    if opt.dataset == 'imagenet':
+        opt.image_size = 224
+    else:
+        opt.image_size = 32
+
     # set different learning rate from these 4 models
     if opt.model_s in ['MobileNetV2', 'ShuffleV1', 'ShuffleV2']:
         opt.base_lr = opt.base_lr / 5 # base_lr 0.04 and with bs=64 > lr=0.01
@@ -128,9 +131,7 @@ def parse_option():
     if opt.sched == 'warmup_step' and opt.warmup_epochs == 5:
         opt.warmup_epochs = 150
     
-    opt.model_path = './save/student_model'
-    
-    opt.model_t = get_teacher_name(opt.path_t)
+    opt.model_t = get_model_name(opt.path_t)
 
     if opt.model_s == 'ShuffleV2' or opt.model_t == 'ShuffleV2':
         raise NotImplementedError
@@ -145,7 +146,7 @@ def parse_option():
             opt.model_s, opt.model_t, opt.dataset, opt.distill, opt.gamma, opt.alpha, opt.beta, opt.batch_size,
             opt.base_lr, opt.weight_decay, opt.nce_t, opt.trial)
 
-    opt.save_folder = os.path.join(opt.model_path, opt.model_name)
+    opt.save_folder = os.path.join('save', 'student_model', opt.model_name)
     if not os.path.isdir(opt.save_folder):
         os.makedirs(opt.save_folder)
 
@@ -153,20 +154,20 @@ def parse_option():
     return opt
 
 
-def get_teacher_name(model_path):
+def get_model_name(path_model):
     """parse teacher name"""
-    segments = model_path.split('/')[-2].split('_')
+    segments = path_model.split('/')[-2].split('_')
     if segments[0] != 'wrn':
         return segments[0]
     else:
         return segments[0] + '_' + segments[1] + '_' + segments[2]
 
 
-def load_teacher(model_path, n_cls, layers):
+def load_teacher(path_model, n_cls, layers):
     print('==> loading teacher model')
-    model_t = get_teacher_name(model_path)
+    model_t = get_model_name(path_model)
     model = model_extractor(model_t, num_classes=n_cls, layers=layers)
-    model.load_state_dict(torch.load(model_path)['model'])
+    ret = model.load_state_dict(torch.load(path_model)['model'], strict=True)
     print('==> done')
     return model
 
@@ -322,7 +323,7 @@ def main():
     print('teacher accuracy: ', teacher_acc)
 
     # routine
-    for epoch in range(1, opt.epochs + 1):
+    for epoch in range(1, opt.epochs+1):
 
         lr_scheduler.step(epoch)        
         print("==> Training...Epoch: {} | LR: {}".format(epoch, optimizer.param_groups[0]['lr']))
