@@ -1,7 +1,5 @@
 from __future__ import print_function
 
-import os
-import socket
 import numpy as np
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
@@ -16,25 +14,6 @@ std = {
     'cifar100': (0.2675, 0.2565, 0.2761),
 }
 """
-
-
-def get_data_folder():
-    """
-    return server-dependent path to store the data
-    """
-    hostname = socket.gethostname()
-    if hostname.startswith('visiongpu'):
-        data_folder = '/data/vision/phillipi/rep-learn/datasets'
-    elif hostname.startswith('yonglong-home'):
-        data_folder = '/home/yonglong/Data/data'
-    else:
-        data_folder = './data/'
-
-    if not os.path.isdir(data_folder):
-        os.makedirs(data_folder)
-
-    return data_folder
-
 
 class CIFAR100Instance(datasets.CIFAR100):
     """CIFAR100Instance Dataset.
@@ -55,11 +34,11 @@ class CIFAR100Instance(datasets.CIFAR100):
         return img, target, index
 
 
-def get_cifar100_dataloaders(batch_size=128, num_workers=8, is_instance=False):
+def get_cifar100_dataloaders(dataset_path, batch_size=128, num_workers=8, is_instance=False):
     """
     cifar 100
     """
-    data_folder = get_data_folder()
+    data_folder = dataset_path
 
     train_transform = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
@@ -93,7 +72,7 @@ def get_cifar100_dataloaders(batch_size=128, num_workers=8, is_instance=False):
                                  train=False,
                                  transform=test_transform)
     test_loader = DataLoader(test_set,
-                             batch_size=int(batch_size/2),
+                             batch_size=64,
                              shuffle=False,
                              num_workers=int(num_workers/2))
 
@@ -173,12 +152,12 @@ class CIFAR100InstanceSample(datasets.CIFAR100):
             return img, target, index, sample_idx
 
 
-def get_cifar100_dataloaders_sample(batch_size=128, num_workers=8, k=4096, mode='exact',
+def get_cifar100_dataloaders_sample(dataset_path, batch_size=128, num_workers=8, k=4096, mode='exact',
                                     is_sample=True, percent=1.0):
     """
     cifar 100
     """
-    data_folder = get_data_folder()
+    data_folder = dataset_path
 
     train_transform = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
@@ -210,7 +189,7 @@ def get_cifar100_dataloaders_sample(batch_size=128, num_workers=8, k=4096, mode=
                                  train=False,
                                  transform=test_transform)
     test_loader = DataLoader(test_set,
-                             batch_size=int(batch_size/2),
+                             batch_size=64,
                              shuffle=False,
                              num_workers=int(num_workers/2))
 

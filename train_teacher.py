@@ -47,8 +47,10 @@ def parse_option():
                                  'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2',
                                  'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet50',
                                  'MobileNetV2', 'ShuffleV1', 'ShuffleV2'])
-    parser.add_argument('--dataset', type=str, default='cifar100', choices=['cifar10', 'cifar100'], help='dataset')
-
+    parser.add_argument('--dataset', type=str, default='cifar100', 
+                        choices=['cifar10', 'cifar100', 'svhn', 'stl10', 'cinic10', 'tinyimagenet', 'imagenet'], help='dataset')
+    parser.add_argument('--dataset_path', type=str, default='./data/', help='path to download/read datasets')
+    
     parser.add_argument('-t', '--trial', type=int, default=0, help='the experiment id')
 
     opt = parser.parse_args()

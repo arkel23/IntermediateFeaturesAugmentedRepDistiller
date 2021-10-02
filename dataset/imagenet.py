@@ -1,240 +1,259 @@
-"""
-get data loaders
-"""
 from __future__ import print_function
 
 import os
-import socket
 import numpy as np
 from torch.utils.data import DataLoader
-from torchvision import datasets
-from torchvision import transforms
+from torchvision import datasets, transforms
+from torchvision.datasets.utils import check_integrity
+from PIL import Image
 
+"""
+# https://github.com/winycg/HSAKD/blob/main/eval_rep.py
+mean = {
+    'imagenet': (0.485, 0.456, 0.406),
+}
+std = {
+    'imagenet': (0.229, 0.224, 0.225),
+}
+"""
 
-def get_data_folder():
+class ImageNet(datasets.ImageFolder):
+    """`ImageNet <https://www.kaggle.com/c/imagenet-object-localization-challenge/overview/description>`_ Dataset.
+    Args:
+        root (string): Root directory of dataset where directory
+        train (bool, optional): If True, creates dataset from training set, otherwise
+            creates from test set.
+        transform (callable, optional): A function/transform that takes in an PIL image
+            and returns a transformed version. E.g, ``transforms.RandomCrop``
+        target_transform (callable, optional): A function/transform that takes in the
+            target and transforms it.
+            
+    Attributes:
+        classes (list): List of the class names sorted alphabetically.
+        class_to_idx (dict): Dict with items (class_name, class_index).
+        samples (list): List of (sample path, class_index) tuples
+        targets (list): The class_index value for each image in the dataset
     """
-    return server-dependent path to store the data
-    """
-    hostname = socket.gethostname()
-    if hostname.startswith('visiongpu'):
-        data_folder = '/data/vision/phillipi/rep-learn/datasets/imagenet'
-    elif hostname.startswith('yonglong-home'):
-        data_folder = '/home/yonglong/Data/data/imagenet'
-    elif hostname.startswith('server-3090'):
-        data_folder = '/hdd/edwin/data/ImageNet2012/ILSVRC/Data/CLS-LOC/'
-    else:
-        data_folder = '/home/u1427924/data/ImageNet/CLS-LOC/'
-    #else:
-    #    data_folder = './data/imagenet'
+    sample_image = os.path.join('val', 'n01440764', 'ILSVRC2012_val_00000293.JPEG')
+    
+    def __init__(
+            self,
+            root: str,
+            train: bool = True,
+            transform = None,
+            target_transform= None,
+    ):
+        integrity = self._check_integrity(root)
+        if not integrity:
+            raise RuntimeError('File not found or corrupted.')
+            
+        if train:
+            dataset_path = os.path.join(root, 'train')
+        else:
+            dataset_path = os.path.join(root, 'val')
+        
+        super(ImageNet, self).__init__(root=dataset_path, transform=transform,
+                                      target_transform=target_transform)
+        
+        self.parent_root = root
+        self.train = train  # training set or test set
 
-    if not os.path.isdir(data_folder):
-        os.makedirs(data_folder)
-
-    return data_folder
-
-
-class ImageFolderInstance(datasets.ImageFolder):
-    """: Folder datasets which returns the index of the image as well::
-    """
+    def _check_integrity(self, root):
+        check_path = os.path.join(root, self.sample_image)
+        if check_integrity(check_path):
+            return True
+        return False
+    
     def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-        Returns:
-            tuple: (image, target) where target is class_index of the target class.
-        """
-        path, target = self.imgs[index]
-        img = self.loader(path)
+        img_path, target = self.samples[index]
+        
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        #img = Image.fromarray(img)
+        img = Image.open(img_path).convert('RGB')
+        
         if self.transform is not None:
             img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+
+class ImageNetInstance(ImageNet):
+    """ImageNetInstance Dataset.
+    """
+    def __getitem__(self, index):
+        img_path, target = self.samples[index]
+        
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        #img = Image.fromarray(img)
+        img = Image.open(img_path).convert('RGB')
+        
+        if self.transform is not None:
+            img = self.transform(img)
+
         if self.target_transform is not None:
             target = self.target_transform(target)
 
         return img, target, index
 
-
-class ImageFolderSample(datasets.ImageFolder):
-    """: Folder datasets which returns (img, label, index, contrast_index):
+def get_imagenet_dataloaders(dataset_path, batch_size=128, num_workers=8, is_instance=False):
     """
-    def __init__(self, root, transform=None, target_transform=None,
-                 is_sample=False, k=4096):
-        super().__init__(root=root, transform=transform, target_transform=target_transform)
+    imagenet 10
+    """
+    data_folder = dataset_path
 
-        self.k = k
-        self.is_sample = is_sample
-
-        print('stage1 finished!')
-
-        if self.is_sample:
-            num_classes = len(self.classes)
-            num_samples = len(self.samples)
-            label = np.zeros(num_samples, dtype=np.int32)
-            for i in range(num_samples):
-                path, target = self.imgs[i]
-                label[i] = target
-
-            self.cls_positive = [[] for i in range(num_classes)]
-            for i in range(num_samples):
-                self.cls_positive[label[i]].append(i)
-
-            self.cls_negative = [[] for i in range(num_classes)]
-            for i in range(num_classes):
-                for j in range(num_classes):
-                    if j == i:
-                        continue
-                    self.cls_negative[i].extend(self.cls_positive[j])
-
-            self.cls_positive = [np.asarray(self.cls_positive[i], dtype=np.int32) for i in range(num_classes)]
-            self.cls_negative = [np.asarray(self.cls_negative[i], dtype=np.int32) for i in range(num_classes)]
-
-        print('dataset initialized!')
-
-    def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-        Returns:
-            tuple: (image, target) where target is class_index of the target class.
-        """
-        path, target = self.imgs[index]
-        img = self.loader(path)
-        if self.transform is not None:
-            img = self.transform(img)
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-
-        if self.is_sample:
-            # sample contrastive examples
-            pos_idx = index
-            neg_idx = np.random.choice(self.cls_negative[target], self.k, replace=True)
-            sample_idx = np.hstack((np.asarray([pos_idx]), neg_idx))
-            return img, target, index, sample_idx
-        else:
-            return img, target, index
-
-
-def get_test_loader(dataset='imagenet', batch_size=128, num_workers=8):
-    """get the test data loader"""
-
-    if dataset == 'imagenet':
-        data_folder = get_data_folder()
-    else:
-        raise NotImplementedError('dataset not supported: {}'.format(dataset))
-
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-    test_transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        normalize,
-    ])
-
-    test_folder = os.path.join(data_folder, 'val')
-    test_set = datasets.ImageFolder(test_folder, transform=test_transform)
-    test_loader = DataLoader(test_set,
-                             batch_size=batch_size,
-                             shuffle=False,
-                             num_workers=num_workers,
-                             pin_memory=True)
-
-    return test_loader
-
-
-def get_dataloader_sample(dataset='imagenet', batch_size=128, num_workers=8, is_sample=False, k=4096):
-    """Data Loader for ImageNet"""
-
-    if dataset == 'imagenet':
-        data_folder = get_data_folder()
-    else:
-        raise NotImplementedError('dataset not supported: {}'.format(dataset))
-
-    # add data transform
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
     train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(224),
+        transforms.RandomResizedCrop(32),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        normalize,
+        transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
     ])
     test_transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
+        transforms.Resize(32),
         transforms.ToTensor(),
-        normalize,
+        transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
     ])
-    train_folder = os.path.join(data_folder, 'train')
-    test_folder = os.path.join(data_folder, 'val')
-
-    train_set = ImageFolderSample(train_folder, transform=train_transform, is_sample=is_sample, k=k)
-    test_set = datasets.ImageFolder(test_folder, transform=test_transform)
-
-    train_loader = DataLoader(train_set,
-                              batch_size=batch_size,
-                              shuffle=True,
-                              num_workers=num_workers,
-                              pin_memory=True)
-    test_loader = DataLoader(test_set,
-                             batch_size=batch_size,
-                             shuffle=False,
-                             num_workers=num_workers,
-                             pin_memory=True)
-
-    print('num_samples', len(train_set.samples))
-    print('num_class', len(train_set.classes))
-
-    return train_loader, test_loader, len(train_set), len(train_set.classes)
-
-
-def get_imagenet_dataloader(dataset='imagenet', batch_size=128, num_workers=16, is_instance=False):
-    """
-    Data Loader for imagenet
-    """
-    if dataset == 'imagenet':
-        data_folder = get_data_folder()
-    else:
-        raise NotImplementedError('dataset not supported: {}'.format(dataset))
-
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-    train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(224),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        normalize,
-    ])
-    test_transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        normalize,
-    ])
-
-    train_folder = os.path.join(data_folder, 'train')
-    test_folder = os.path.join(data_folder, 'val')
 
     if is_instance:
-        train_set = ImageFolderInstance(train_folder, transform=train_transform)
+        train_set = ImageNetInstance(root=data_folder,
+                                     train=True,
+                                     transform=train_transform)
         n_data = len(train_set)
     else:
-        train_set = datasets.ImageFolder(train_folder, transform=train_transform)
-
-    test_set = datasets.ImageFolder(test_folder, transform=test_transform)
-
+        train_set = ImageNet(root=data_folder,
+                                      train=True,
+                                      transform=train_transform)
     train_loader = DataLoader(train_set,
                               batch_size=batch_size,
                               shuffle=True,
-                              num_workers=num_workers,
-                              pin_memory=True)
+                              num_workers=num_workers)
 
+    test_set = ImageNet(root=data_folder,
+                                 train=False,
+                                 transform=test_transform)
     test_loader = DataLoader(test_set,
-                             batch_size=batch_size,
+                             batch_size=64,
                              shuffle=False,
-                             num_workers=num_workers//2,
-                             pin_memory=True)
+                             num_workers=int(num_workers/2))
 
     if is_instance:
         return train_loader, test_loader, n_data
     else:
         return train_loader, test_loader
+
+
+class ImageNetInstanceSample(ImageNet):
+    """
+    ImageNetInstance+Sample Dataset
+    """
+    def __init__(self, root, train=True,
+                 transform=None, target_transform=None,
+                 k=4096, mode='exact', is_sample=True, percent=1.0):
+        super().__init__(root=root, train=train,
+                         transform=transform, target_transform=target_transform)
+        self.k = k
+        self.mode = mode
+        self.is_sample = is_sample
+
+        num_classes = 200
+        num_samples = len(self.samples)
+        label = self.targets
+        
+        self.cls_positive = [[] for i in range(num_classes)]
+        for i in range(num_samples):
+            self.cls_positive[label[i]].append(i)
+
+        self.cls_negative = [[] for i in range(num_classes)]
+        for i in range(num_classes):
+            for j in range(num_classes):
+                if j == i:
+                    continue
+                self.cls_negative[i].extend(self.cls_positive[j])
+
+        self.cls_positive = [np.asarray(self.cls_positive[i]) for i in range(num_classes)]
+        self.cls_negative = [np.asarray(self.cls_negative[i]) for i in range(num_classes)]
+
+        if 0 < percent < 1:
+            n = int(len(self.cls_negative[0]) * percent)
+            self.cls_negative = [np.random.permutation(self.cls_negative[i])[0:n]
+                                 for i in range(num_classes)]
+
+        self.cls_positive = np.asarray(self.cls_positive)
+        self.cls_negative = np.asarray(self.cls_negative)
+
+    def __getitem__(self, index):
+        img_path, target = self.samples[index]
+        
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        #img = Image.fromarray(img)
+        img = Image.open(img_path).convert('RGB')
+        
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        if not self.is_sample:
+            # directly return
+            return img, target, index
+        else:
+            # sample contrastive examples
+            if self.mode == 'exact':
+                pos_idx = index
+            elif self.mode == 'relax':
+                pos_idx = np.random.choice(self.cls_positive[target], 1)
+                pos_idx = pos_idx[0]
+            else:
+                raise NotImplementedError(self.mode)
+            replace = True if self.k > len(self.cls_negative[target]) else False
+            neg_idx = np.random.choice(self.cls_negative[target], self.k, replace=replace)
+            sample_idx = np.hstack((np.asarray([pos_idx]), neg_idx))
+            return img, target, index, sample_idx
+
+
+def get_imagenet_dataloaders_sample(dataset_path, batch_size=128, num_workers=8, k=4096, mode='exact',
+                                    is_sample=True, percent=1.0):
+    """
+    imagenet 10
+    """
+    data_folder = dataset_path
+
+    train_transform = transforms.Compose([
+        transforms.RandomResizedCrop(32),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
+    ])
+    test_transform = transforms.Compose([
+        transforms.Resize(32),
+        transforms.ToTensor(),
+        transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
+    ])
+
+    train_set = ImageNetInstanceSample(root=data_folder,
+                                       train=True,
+                                       transform=train_transform,
+                                       k=k,
+                                       mode=mode,
+                                       is_sample=is_sample,
+                                       percent=percent)
+    n_data = len(train_set)
+    train_loader = DataLoader(train_set,
+                              batch_size=batch_size,
+                              shuffle=True,
+                              num_workers=num_workers)
+
+    test_set = ImageNet(root=data_folder,
+                                 train=False,
+                                 transform=test_transform)
+    test_loader = DataLoader(test_set,
+                             batch_size=64,
+                             shuffle=False,
+                             num_workers=int(num_workers/2))
+
+    return train_loader, test_loader, n_data

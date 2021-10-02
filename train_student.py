@@ -59,8 +59,10 @@ def parse_option():
     parser.add_argument('--decay_epochs', type=float, default=30, help='epoch interval to decay LR')
     
     # dataset
-    parser.add_argument('--dataset', type=str, default='cifar100', choices=['cifar10', 'cifar100'], help='dataset')
-
+    parser.add_argument('--dataset', type=str, default='cifar100', 
+                        choices=['cifar10', 'cifar100', 'svhn', 'stl10', 'cinic10', 'tinyimagenet', 'imagenet'], help='dataset')
+    parser.add_argument('--dataset_path', type=str, default='./data/', help='path to download/read datasets')
+    
     # model
     parser.add_argument('--model_s', type=str, default='resnet8',
                         choices=['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110',

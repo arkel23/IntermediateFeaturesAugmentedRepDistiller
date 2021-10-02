@@ -6,13 +6,18 @@ from torchvision import datasets, transforms
 from PIL import Image
 
 """
-https://gist.github.com/weiaicunzai/e623931921efefd4c331622c344d8151
-mean: tensor([0.4377, 0.4438, 0.4728])
-std: tensor([0.1980, 0.2010, 0.1970])
+# https://github.com/YU1ut/MixMatch-pytorch/pull/25/files
+mean = {
+    'STL1010': (0.4914, 0.4822, 0.4465),
+}
+
+std = {
+    'stl10': (0.2471, 0.2435, 0.2616),
+}
 """
 
-class SVHNInstance(datasets.SVHN):
-    """SVHNInstance Dataset.
+class STL10Instance(datasets.STL10):
+    """STL10Instance Dataset.
     """
     def __getitem__(self, index):
         img, target = self.data[index], int(self.labels[index])
@@ -30,31 +35,32 @@ class SVHNInstance(datasets.SVHN):
         return img, target, index
 
 
-def get_svhn_dataloaders(dataset_path, batch_size=128, num_workers=8, is_instance=False):
+def get_stl10_dataloaders(dataset_path, batch_size=128, num_workers=8, is_instance=False):
     """
-    cifar 10
+    stl 10
     """
     data_folder = dataset_path
 
     train_transform = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
+        transforms.RandomResizedCrop(32),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize((0.4377, 0.4438, 0.4728), (0.1980, 0.2010, 0.1970)),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2471, 0.2435, 0.2616)),
     ])
     test_transform = transforms.Compose([
+        transforms.Resize(32),
         transforms.ToTensor(),
-        transforms.Normalize((0.4377, 0.4438, 0.4728), (0.1980, 0.2010, 0.1970)),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2471, 0.2435, 0.2616)),
     ])
 
     if is_instance:
-        train_set = SVHNInstance(root=data_folder,
+        train_set = STL10Instance(root=data_folder,
                                      download=True,
                                      split='train',
                                      transform=train_transform)
         n_data = len(train_set)
     else:
-        train_set = datasets.SVHN(root=data_folder,
+        train_set = datasets.STL10(root=data_folder,
                                       download=True,
                                       split='train',
                                       transform=train_transform)
@@ -63,7 +69,7 @@ def get_svhn_dataloaders(dataset_path, batch_size=128, num_workers=8, is_instanc
                               shuffle=True,
                               num_workers=num_workers)
 
-    test_set = datasets.SVHN(root=data_folder,
+    test_set = datasets.STL10(root=data_folder,
                                  download=True,
                                  split='test',
                                  transform=test_transform)
@@ -78,9 +84,9 @@ def get_svhn_dataloaders(dataset_path, batch_size=128, num_workers=8, is_instanc
         return train_loader, test_loader
 
 
-class SVHNInstanceSample(datasets.SVHN):
+class STL10InstanceSample(datasets.STL10):
     """
-    SVHNInstance+Sample Dataset
+    STL10Instance+Sample Dataset
     """
     def __init__(self, root, split='train',
                  transform=None, target_transform=None,
@@ -118,7 +124,7 @@ class SVHNInstanceSample(datasets.SVHN):
         self.cls_negative = np.asarray(self.cls_negative)
 
     def __getitem__(self, index):
-        img, target = self.data[index], self.labels[index]
+        img, target = self.data[index], int(self.labels[index])
         
         # doing this so that it is consistent with all other datasets
         # to return a PIL Image
@@ -148,25 +154,26 @@ class SVHNInstanceSample(datasets.SVHN):
             return img, target, index, sample_idx
 
 
-def get_svhn_dataloaders_sample(dataset_path, batch_size=128, num_workers=8, k=4096, mode='exact',
+def get_stl10_dataloaders_sample(dataset_path, batch_size=128, num_workers=8, k=4096, mode='exact',
                                     is_sample=True, percent=1.0):
     """
-    cifar 10
+    stl 10
     """
     data_folder = dataset_path
 
     train_transform = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
+        transforms.RandomResizedCrop(32),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize((0.4377, 0.4438, 0.4728), (0.1980, 0.2010, 0.1970)),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2471, 0.2435, 0.2616)),
     ])
     test_transform = transforms.Compose([
+        transforms.Resize(32),
         transforms.ToTensor(),
-        transforms.Normalize((0.4377, 0.4438, 0.4728), (0.1980, 0.2010, 0.1970)),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2471, 0.2435, 0.2616)),
     ])
 
-    train_set = SVHNInstanceSample(root=data_folder,
+    train_set = STL10InstanceSample(root=data_folder,
                                        download=True,
                                        split='train',
                                        transform=train_transform,
@@ -180,7 +187,7 @@ def get_svhn_dataloaders_sample(dataset_path, batch_size=128, num_workers=8, k=4
                               shuffle=True,
                               num_workers=num_workers)
 
-    test_set = datasets.SVHN(root=data_folder,
+    test_set = datasets.STL10(root=data_folder,
                                  download=True,
                                  split='test',
                                  transform=test_transform)
