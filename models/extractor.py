@@ -24,7 +24,7 @@ class Extractor(nn.Module):
             feat_m.append(self.model.layer1)
             feat_m.append(self.model.layer2)
             feat_m.append(self.model.layer3)
-        elif self.model_name in ['ResNet50']:
+        elif self.model_name in ['ResNet18', 'ResNet34', 'ResNet50']:
             feat_m.append(self.model.conv1)
             feat_m.append(self.model.bn1)
             feat_m.append(self.model.relu)
@@ -204,6 +204,24 @@ class Extractor(nn.Module):
                     'layer3.4.relu_15': 'layerminus1',
                     'fc': 'layerminus0'
                 }
+            elif model_name == 'ResNet18':
+                return_nodes =  {
+                    'layer4.0.relu_13': 'layerminus4',
+                    'layer4.0.relu_14': 'layerminus3',
+                    'layer4.1.relu_15': 'layerminus2',
+                    'layer4.1.relu_16': 'layerminus1',
+                    'linear': 'layerminus0'
+                }
+            elif model_name == 'ResNet34':
+                return_nodes =  {
+                    'layer4.0.relu_27': 'layerminus6',
+                    'layer4.0.relu_28': 'layerminus5',
+                    'layer4.1.relu_29': 'layerminus4',
+                    'layer4.1.relu_30': 'layerminus3',
+                    'layer4.2.relu_31': 'layerminus2',
+                    'layer4.2.relu_32': 'layerminus1',
+                    'linear': 'layerminus0'
+                }
             elif model_name == 'ResNet50':
                 return_nodes =  {
                     'layer4.0.relu_40': 'layerminus9',
@@ -372,6 +390,24 @@ class Extractor(nn.Module):
                     'layer3.4.relu_15': 'layerminus2',
                     'fc': 'layerminus0'
                 }
+            elif model_name == 'ResNet18':
+                return_nodes = {
+                    'relu': 'layerminus6',
+                    'layer1.1.relu_4': 'layerminus5',
+                    'layer2.1.relu_8': 'layerminus4',
+                    'layer3.1.relu_12': 'layerminus3',
+                    'layer4.1.relu_16': 'layerminus2',
+                    'linear': 'layerminus0'
+                }
+            elif model_name == 'ResNet34':
+                return_nodes = {
+                    'relu': 'layerminus6',
+                    'layer1.2.relu_6': 'layerminus5',
+                    'layer2.3.relu_14': 'layerminus4',
+                    'layer3.5.relu_26': 'layerminus3',
+                    'layer4.2.relu_32': 'layerminus2',
+                    'linear': 'layerminus0'
+                }
             elif model_name == 'ResNet50':
                 return_nodes = {
                     'relu': 'layerminus6',
@@ -439,7 +475,7 @@ class Extractor(nn.Module):
                               'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2']:
                 return_nodes = {node:i for i, node in enumerate(train_nodes) if 'relu' in train_nodes}
                 return_nodes['fc'] = 'layerminus0' 
-            elif model_name in ['ResNet50', 'ShuffleV1', 'ShuffleV2']:
+            elif model_name in ['ResNet18', 'ResNet34', 'ResNet50', 'ShuffleV1', 'ShuffleV2']:
                 return_nodes = {node:i for i, node in enumerate(train_nodes) if 'relu' in train_nodes}
                 return_nodes['linear'] = 'layerminus0' 
             elif model_name in ['vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19']:
@@ -532,6 +568,26 @@ class Extractor(nn.Module):
                     'layer3.4.relu_15': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
+                }
+            elif model_name == 'ResNet18':
+                return_nodes = {
+                    'relu': 'layerminus6',
+                    'layer1.1.relu_4': 'layerminus5',
+                    'layer2.1.relu_8': 'layerminus4',
+                    'layer3.1.relu_12': 'layerminus3',
+                    'layer4.1.relu_16': 'layerminus2',
+                    'view': 'layerminus1',
+                    'linear': 'layerminus0'
+                }
+            elif model_name == 'ResNet34':
+                return_nodes = {
+                    'relu': 'layerminus6',
+                    'layer1.2.relu_6': 'layerminus5',
+                    'layer2.3.relu_14': 'layerminus4',
+                    'layer3.5.relu_26': 'layerminus3',
+                    'layer4.2.relu_32': 'layerminus2',
+                    'view': 'layerminus1',
+                    'linear': 'layerminus0'
                 }
             elif model_name == 'ResNet50':
                 return_nodes = {
@@ -683,6 +739,26 @@ class Extractor(nn.Module):
                     'layer3.4.add_14': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
+                }
+            elif model_name == 'ResNet18':
+                return_nodes = {
+                    'relu': 'layerminus6',
+                    'layer1.1.add_1': 'layerminus5',
+                    'layer2.1.add_3': 'layerminus4',
+                    'layer3.1.add_5': 'layerminus3',
+                    'layer4.1.add_7': 'layerminus2',
+                    'view': 'layerminus1',
+                    'linear': 'layerminus0'
+                }
+            elif model_name == 'ResNet34':
+                return_nodes = {
+                    'relu': 'layerminus6',
+                    'layer1.2.add_2': 'layerminus5',
+                    'layer2.3.add_6': 'layerminus4',
+                    'layer3.5.add_12': 'layerminus3',
+                    'layer4.2.add_15': 'layerminus2',
+                    'view': 'layerminus1',
+                    'linear': 'layerminus0'
                 }
             elif model_name == 'ResNet50':
                 return_nodes = {
