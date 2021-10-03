@@ -106,9 +106,7 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
                 contrast_idx = contrast_idx.cuda()
 
         # ===================forward=====================
-        preact = False
-        if opt.distill in ['abound']:
-            preact = True
+        #preact = (opt.distill == 'abound')
         #feat_s, logit_s = model_s(input, is_feat=True, preact=preact)
         #with torch.no_grad():
         #    feat_t, logit_t = model_t(input, is_feat=True, preact=preact)

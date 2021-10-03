@@ -114,7 +114,10 @@ def parse_option():
 
     # set layers argument to blocks when using any method that is not ifacrd
     if opt.distill != 'ifacrd':
-        opt.layers = 'default'
+        if opt.distill == 'abound':
+            opt.layers = 'preact'
+        else:
+            opt.layers = 'default'
         opt.cont_no_l = 0
 
     if opt.dataset == 'imagenet':
@@ -185,6 +188,10 @@ def main():
     # model
     model_t = load_teacher(opt.path_t, n_cls, opt.layers)
     model_s = model_extractor(opt.model_s, num_classes=n_cls, layers=opt.layers)
+    
+    # init wandb logger
+    wandb.init(config=opt)
+    wandb.run.name = '{}'.format(opt.model_name)
 
     data = torch.randn(2, 3, opt.image_size, opt.image_size)
     model_t.eval()
@@ -257,7 +264,7 @@ def main():
         # add this as some parameters in VIDLoss need to be updated
         trainable_list.append(criterion_kd)
     elif opt.distill == 'abound':
-        raise NotImplementedError
+        #raise NotImplementedError
         s_shapes = [f.shape for f in feat_s[1:-1]]
         t_shapes = [f.shape for f in feat_t[1:-1]]
         connector = Connector(s_shapes, t_shapes)
@@ -270,7 +277,7 @@ def main():
         # classification
         module_list.append(connector)
     elif opt.distill == 'factor':
-        raise NotImplementedError
+        #raise NotImplementedError
         s_shape = feat_s[-2].shape
         t_shape = feat_t[-2].shape
         paraphraser = Paraphraser(t_shape)
@@ -286,7 +293,6 @@ def main():
         module_list.append(paraphraser)
         trainable_list.append(translator)
     elif opt.distill == 'fsp':
-        raise NotImplementedError
         s_shapes = [s.shape for s in feat_s[:-1]]
         t_shapes = [t.shape for t in feat_t[:-1]]
         criterion_kd = FSP(s_shapes, t_shapes)
@@ -315,9 +321,6 @@ def main():
         criterion_list.cuda()
         cudnn.benchmark = True
         
-    wandb.init(config=opt)
-    wandb.run.name = '{}'.format(opt.model_name)
-
     # validate teacher accuracy
     teacher_acc, _, _ = validate(val_loader, model_t, criterion_cls, opt)
     print('teacher accuracy: ', teacher_acc)
@@ -353,8 +356,6 @@ def main():
     time_end = time.time()
     time_total = time_end - time_start
     
-    #if opt.distill == 'abound':
-    #    module_list.append(connector)
     no_params_modules = count_params_module_list(module_list)
     no_params_criterion = count_params_module_list(criterion_list)
     no_params = no_params_modules + no_params_criterion

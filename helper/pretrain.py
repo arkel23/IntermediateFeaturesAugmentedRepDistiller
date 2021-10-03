@@ -5,7 +5,7 @@ import sys
 import torch
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
-from .util import AverageMeter
+from .util import AverageMeter, return_optimizer_scheduler
 import wandb
 
 #def init(model_s, model_t, init_modules, criterion, train_loader, logger, opt):
@@ -21,15 +21,15 @@ def init(model_s, model_t, init_modules, criterion, train_loader, opt):
         cudnn.benchmark = True
 
     if opt.model_s in ['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110',
-                       'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2'] and \
-            opt.distill == 'factor':
-        lr = 0.01
+        'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2'] and opt.distill == 'factor':
+        lr = (opt.base_lr / 5) * (opt.batch_size / 256) #0.01
     else:
-        lr = opt.learning_rate
-    optimizer = optim.SGD(init_modules.parameters(),
-                          lr=lr,
-                          momentum=opt.momentum,
-                          weight_decay=opt.weight_decay)
+        lr = opt.lr
+    #optimizer = optim.SGD(init_modules.parameters(),
+    #                      lr=lr,
+    #                      momentum=opt.momentum,
+    #                      weight_decay=opt.weight_decay)
+    optimizer, _ = return_optimizer_scheduler(opt, init_modules)
 
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -55,11 +55,21 @@ def init(model_s, model_t, init_modules, criterion, train_loader, opt):
                     contrast_idx = contrast_idx.cuda()
 
             # ============= forward ==============
-            preact = (opt.distill == 'abound')
-            feat_s, _ = model_s(input, is_feat=True, preact=preact)
+            #preact = (opt.distill == 'abound')
+            #feat_s, _ = model_s(input, is_feat=True, preact=preact)
+            out_s = model_s(input, classify_only=False)
+            feat_s = out_s[:-1]
+            
+            #with torch.no_grad():
+            #    feat_t, _ = model_t(input, is_feat=True, preact=preact)
+            #    feat_t = [f.detach() for f in feat_t]
             with torch.no_grad():
-                feat_t, _ = model_t(input, is_feat=True, preact=preact)
-                feat_t = [f.detach() for f in feat_t]
+                out_t = model_t(input, classify_only=False)
+                feat_t = out_t[:-1]
+                #logit_t = out_t[-1]
+                if opt.distill != 'ifacrd':
+                    feat_t = [f.detach() for f in feat_t]
+        
 
             if opt.distill == 'abound':
                 g_s = init_modules[0](feat_s[1:-1])

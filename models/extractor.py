@@ -7,15 +7,66 @@ from einops.layers.torch import Rearrange
 class Extractor(nn.Module):
     def __init__(self, model, model_name, layers='default'):
         super(Extractor, self).__init__()
+        self.model_name = model_name
         return_nodes = self.get_return_nodes(model, model_name, layers)
         self.model = feature_extraction.create_feature_extractor(model, return_nodes=return_nodes)
         
         if layers != 'default':
-            self.pool = nn.Sequential(
-                            nn.AdaptiveAvgPool2d(1),
-                            Rearrange('b c 1 1 -> b c')
-                        )
-    
+            self.pool = nn.Sequential(nn.AdaptiveAvgPool2d(1), Rearrange('b c 1 1 -> b c'))
+
+    def get_feat_modules(self):
+        feat_m = nn.ModuleList([])
+        if self.model_name in ['resnet8', 'resnet14', 'resnet32', 'resnet44', 
+                'resnet56', 'resnet110', 'resnet8x4', 'resnet32x4']:
+            feat_m.append(self.model.conv1)
+            feat_m.append(self.model.bn1)
+            feat_m.append(self.model.relu)
+            feat_m.append(self.model.layer1)
+            feat_m.append(self.model.layer2)
+            feat_m.append(self.model.layer3)
+        elif self.model_name in ['ResNet50']:
+            feat_m.append(self.model.conv1)
+            feat_m.append(self.model.bn1)
+            feat_m.append(self.model.relu)
+            feat_m.append(self.model.layer1)
+            feat_m.append(self.model.layer2)
+            feat_m.append(self.model.layer3)
+            feat_m.append(self.model.layer4)
+        elif self.model_name in ['wrn_40_2', 'wrn_40_1', 'wrn_16_2']:
+            feat_m.append(self.model.conv1)
+            feat_m.append(self.model.block1)
+            feat_m.append(self.model.block2)
+            feat_m.append(self.model.block3)
+        elif self.model_name in ['vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19']:
+            feat_m.append(self.model.block0)
+            feat_m.append(self.model.pool0)
+            feat_m.append(self.model.block1)
+            feat_m.append(self.model.pool1)
+            feat_m.append(self.model.block2)
+            feat_m.append(self.model.pool2)
+            feat_m.append(self.model.block3)
+            feat_m.append(self.model.pool3)
+            feat_m.append(self.model.block4)
+            feat_m.append(self.model.pool4)
+        elif self.model_name in ['ShuffleV1']:
+            feat_m.append(self.model.conv1)
+            feat_m.append(self.model.bn1)
+            feat_m.append(self.model.layer1)
+            feat_m.append(self.model.layer2)
+            feat_m.append(self.model.layer3)
+        elif self.model_name in ['ShuffleV2']:
+            feat_m.append(self.model.conv1)
+            feat_m.append(self.model.bn1)
+            feat_m.append(self.model.layer1)
+            feat_m.append(self.model.layer2)
+            feat_m.append(self.model.layer3)
+        elif self.model_name in ['MobileNetV2']:
+            feat_m.append(self.model.conv1)
+            feat_m.append(self.model.blocks)
+        else:
+            raise NotImplementedError    
+        return feat_m
+  
     def forward(self, x, classify_only=True):
         interm_features = list(self.model(x).values())
         if classify_only:
@@ -235,7 +286,7 @@ class Extractor(nn.Module):
                 return_nodes = {
                     'layer3.0.relu_27': 'layerminus10',
                     'layer3.0.relu_28': 'layerminus9',
-                    'layer3.0.relu_20': 'layerminus8',
+                    'layer3.0.relu_29': 'layerminus8',
                     'layer3.1.relu_30': 'layerminus7',
                     'layer3.1.relu_31': 'layerminus6',
                     'layer3.2.relu_32': 'layerminus5',
@@ -544,6 +595,198 @@ class Extractor(nn.Module):
                     'layer1.3.shuffle.reshape_3': 'layerminus4',
                     'layer2.7.shuffle.reshape_11': 'layerminus3',
                     'layer3.3.shuffle.reshape_15': 'layerminus2',
+                    'view_16': 'layerminus1',
+                    'linear': 'layerminus0'
+                }
+            else:
+                raise NotImplementedError
+        
+        
+        elif layers == 'preact':
+            if model_name == 'resnet8':
+                return_nodes = {
+                    'relu': 'layerminus5',
+                    'layer1.0.add': 'layerminus4',
+                    'layer2.0.add_1': 'layerminus3',
+                    'layer3.0.add_2': 'layerminus2',
+                    'view': 'layerminus1',
+                    'fc': 'layerminus0'
+                }
+            elif model_name == 'resnet14':
+                return_nodes = {
+                    'relu': 'layerminus5',
+                    'layer1.1.add_1': 'layerminus4',
+                    'layer2.1.add_3': 'layerminus3',
+                    'layer3.1.add_5': 'layerminus2',
+                    'view': 'layerminus1',
+                    'fc': 'layerminus0'
+                }
+            elif model_name == 'resnet20':
+                return_nodes = {
+                    'relu': 'layerminus5',
+                    'layer1.2.add_2': 'layerminus4',
+                    'layer2.2.add_5': 'layerminus3',
+                    'layer3.2.add_8': 'layerminus2',
+                    'view': 'layerminus1',
+                    'fc': 'layerminus0'
+                }
+            elif model_name == 'resnet32':
+                return_nodes = {
+                    'relu': 'layerminus5',
+                    'layer1.4.add_4': 'layerminus4',
+                    'layer2.4.add_9': 'layerminus3',
+                    'layer3.4.add_14': 'layerminus2',
+                    'view': 'layerminus1',
+                    'fc': 'layerminus0'
+                }
+            elif model_name == 'resnet44':
+                return_nodes = {
+                    'relu': 'layerminus5',
+                    'layer1.6.add_6': 'layerminus4',
+                    'layer2.6.add_13': 'layerminus3',
+                    'layer3.6.add_20': 'layerminus2',
+                    'view': 'layerminus1',
+                    'fc': 'layerminus0'
+                }
+            elif model_name == 'resnet56':
+                return_nodes = {
+                    'relu': 'layerminus5',
+                    'layer1.8.add_8': 'layerminus4',
+                    'layer2.8.add_17': 'layerminus3',
+                    'layer3.8.add_26': 'layerminus2',
+                    'view': 'layerminus1',
+                    'fc': 'layerminus0'
+                }
+            elif model_name == 'resnet110':
+                return_nodes = {
+                    'relu': 'layerminus5',
+                    'layer1.17.add_17': 'layerminus4',
+                    'layer2.17.add_35': 'layerminus3',
+                    'layer3.17.add_53': 'layerminus2',
+                    'view': 'layerminus1',
+                    'fc': 'layerminus0'
+                }
+            elif model_name == 'resnet8x4':
+                return_nodes = {
+                    'relu': 'layerminus5',
+                    'layer1.0.add': 'layerminus4',
+                    'layer2.0.add_1': 'layerminus3',
+                    'layer3.0.add_2': 'layerminus2',
+                    'view': 'layerminus1',
+                    'fc': 'layerminus0'
+                }
+            elif model_name == 'resnet32x4':
+                return_nodes = {
+                    'relu': 'layerminus5',
+                    'layer1.4.add_4': 'layerminus4',
+                    'layer2.4.add_9': 'layerminus3',
+                    'layer3.4.add_14': 'layerminus2',
+                    'view': 'layerminus1',
+                    'fc': 'layerminus0'
+                }
+            elif model_name == 'ResNet50':
+                return_nodes = {
+                    'relu': 'layerminus6',
+                    'layer1.2.add_2': 'layerminus5',
+                    'layer2.3.add_6': 'layerminus4',
+                    'layer3.5.add_12': 'layerminus3',
+                    'layer4.2.add_15': 'layerminus2',
+                    'view': 'layerminus1',
+                    'linear': 'layerminus0'
+                }
+            elif model_name in ['wrn_16_1', 'wrn_16_2']:
+                return_nodes = {
+                    'conv1': 'layerminus5',
+                    'block2.layer.0.bn1': 'layerminus4',
+                    'block3.layer.0.bn1': 'layerminus3',
+                    'bn1': 'layerminus2',
+                    'view': 'layerminus1',
+                    'fc': 'layerminus0'
+                }
+            elif model_name in ['wrn_40_1', 'wrn_40_2']:
+                return_nodes = {
+                    'conv1': 'layerminus5',
+                    'block2.layer.0.bn1': 'layerminus4',
+                    'block3.layer.0.bn1': 'layerminus3',
+                    'bn1': 'layerminus2',
+                    'view': 'layerminus1',
+                    'fc': 'layerminus0'                }
+            elif model_name == 'vgg8':
+                return_nodes = {
+                    'relu': 'layerminus6',
+                    'block1.1': 'layerminus5',
+                    'block2.1': 'layerminus4',
+                    'block3.1': 'layerminus3',
+                    'block4.1': 'layerminus2',
+                    'view': 'layerminus1',
+                    'classifier': 'layerminus0'
+                }
+            elif model_name == 'vgg11':
+                return_nodes = {
+                    'relu': 'layerminus6',
+                    'block1.1': 'layerminus5',
+                    'block2.4': 'layerminus4',
+                    'block3.4': 'layerminus3',
+                    'block4.4': 'layerminus2',
+                    'view': 'layerminus1',
+                    'classifier': 'layerminus0'
+                }
+            elif model_name == 'vgg13':
+                return_nodes = {
+                    'relu': 'layerminus6',
+                    'block1.4': 'layerminus5',
+                    'block2.4': 'layerminus4',
+                    'block3.4': 'layerminus3',
+                    'block4.4': 'layerminus2',
+                    'view': 'layerminus1',
+                    'classifier': 'layerminus0'
+                }
+            elif model_name == 'vgg16':
+                return_nodes = {
+                    'relu': 'layerminus6',
+                    'block1.4': 'layerminus5',
+                    'block2.4': 'layerminus4',
+                    'block3.7': 'layerminus3',
+                    'block4.7': 'layerminus2',
+                    'view': 'layerminus1',
+                    'classifier': 'layerminus0'
+                }
+            elif model_name == 'vgg19':
+                return_nodes = {
+                    'relu': 'layerminus6',
+                    'block1.4': 'layerminus5',
+                    'block2.10': 'layerminus4',
+                    'block3.10': 'layerminus3',
+                    'block4.10': 'layerminus2',
+                    'view': 'layerminus1',
+                    'classifier': 'layerminus0'
+                }
+            
+            elif model_name == 'MobileNetV2':
+                return_nodes = {
+                    'conv1.2': 'layerminus6',
+                    'blocks.1.1.add': 'layerminus5',
+                    'blocks.2.2.add_2': 'layerminus4',
+                    'blocks.4.2.add_7': 'layerminus3',
+                    'blocks.6.0.conv.7': 'layerminus2',
+                    'view': 'layerminus1',
+                    'classifier.0': 'layerminus0'                
+                }
+            elif model_name == 'ShuffleV1':
+                return_nodes = {
+                    'relu': 'layerminus5',
+                    'layer1.3.add_2': 'layerminus4',
+                    'layer2.7.add_9': 'layerminus3',
+                    'layer3.3.add_12': 'layerminus2',
+                    'view_16': 'layerminus1',
+                    'linear': 'layerminus0' 
+                }
+            elif model_name == 'ShuffleV2':
+                return_nodes = {
+                    'relu': 'layerminus5',
+                    'layer1.3.cat_5': 'layerminus4',
+                    'layer2.7.cat_20': 'layerminus3',
+                    'layer3.3.cat_27': 'layerminus2',
                     'view_16': 'layerminus1',
                     'linear': 'layerminus0'
                 }
