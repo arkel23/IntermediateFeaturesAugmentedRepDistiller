@@ -106,12 +106,6 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
                 contrast_idx = contrast_idx.cuda()
 
         # ===================forward=====================
-        #preact = (opt.distill == 'abound')
-        #feat_s, logit_s = model_s(input, is_feat=True, preact=preact)
-        #with torch.no_grad():
-        #    feat_t, logit_t = model_t(input, is_feat=True, preact=preact)
-        #    feat_t = [f.detach() for f in feat_t]
-
         out_s = model_s(input, classify_only=False)
         feat_s = out_s[:-1]
         logit_s = out_s[-1]
@@ -181,15 +175,15 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
         elif opt.distill == 'abound':
             # can also add loss to this stage
             loss_kd = 0
-            g_s = module_list[1](feat_s[1:-1])
-            g_t = feat_t[1:-1]
-            loss_group = criterion_kd(g_s, g_t)
-            loss_kd = sum(loss_group)
+            #g_s = module_list[1](feat_s[1:-1])
+            #g_t = feat_t[1:-1]
+            #loss_group = criterion_kd(g_s, g_t)
+            #loss_kd = sum(loss_group)
         elif opt.distill == 'fsp':
             # can also add loss to this stage
-            #loss_kd = 0
-            loss_group = criterion_kd(feat_s[:-1], feat_t[:-1])
-            loss_kd = sum(loss_group)
+            loss_kd = 0
+            #loss_group = criterion_kd(feat_s[:-1], feat_t[:-1])
+            #loss_kd = sum(loss_group)
         elif opt.distill == 'factor':
             factor_s = module_list[1](feat_s[-2])
             factor_t = module_list[2](feat_t[-2], is_factor=True)
