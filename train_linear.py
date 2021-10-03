@@ -80,7 +80,7 @@ def parse_option():
 
     opt.lr = opt.base_lr * (opt.batch_size / 256)
 
-    opt.model_name = '{}_{}_is{}_bs{}_blr{}_decay_{}_trial_{}'.format(opt.model, opt.dataset, 
+    opt.model_name = 'linear_{}_{}_is{}_bs{}_blr{}_decay_{}_trial_{}'.format(opt.model, opt.dataset, 
         opt.image_size, opt.batch_size, opt.base_lr, opt.weight_decay, opt.trial)
 
     opt.save_folder = os.path.join('save', 'linear', opt.model_name)
