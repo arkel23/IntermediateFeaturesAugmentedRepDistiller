@@ -8,6 +8,7 @@ class Extractor(nn.Module):
     def __init__(self, model, model_name, layers='default'):
         super(Extractor, self).__init__()
         self.model_name = model_name
+        self.layers = layers
         return_nodes = self.get_return_nodes(model, model_name, layers)
         self.model = feature_extraction.create_feature_extractor(model, return_nodes=return_nodes)
         
@@ -68,6 +69,8 @@ class Extractor(nn.Module):
         return feat_m
   
     def forward(self, x, classify_only=True):
+        if self.layers == 'last_only':
+            return (self.model(x))
         x = list(self.model(x).values())
         if classify_only:
             return x[-1]
