@@ -91,7 +91,7 @@ def main():
     train_loader, val_loader, n_cls = build_dataloader(opt)
     
     # model
-    model = model_extractor(opt.model, num_classes=n_cls, layers='l')
+    model = model_extractor(opt.model, num_classes=n_cls, layers='last_only')
 
     # optimizer and scheduler
     optimizer, lr_scheduler = return_optimizer_scheduler(opt, model)

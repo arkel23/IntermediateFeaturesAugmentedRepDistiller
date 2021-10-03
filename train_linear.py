@@ -142,7 +142,7 @@ def main():
     train_loader, val_loader, n_cls = build_dataloader(opt)
     
     # backbone
-    backbone = load_model(opt.path_model, n_cls, 'default')
+    backbone = load_model(opt.path_model, n_cls, 'last_only')
     backbone.eval()
     
     # linear classifier head
