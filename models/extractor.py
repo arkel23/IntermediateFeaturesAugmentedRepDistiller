@@ -11,7 +11,7 @@ class Extractor(nn.Module):
         return_nodes = self.get_return_nodes(model, model_name, layers)
         self.model = feature_extraction.create_feature_extractor(model, return_nodes=return_nodes)
         
-        if layers != 'default':
+        if layers not in ['default', 'preact']:
             self.pool = nn.Sequential(nn.AdaptiveAvgPool2d(1), Rearrange('b c 1 1 -> b c'))
 
     def get_feat_modules(self):

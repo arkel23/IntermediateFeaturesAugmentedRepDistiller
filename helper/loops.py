@@ -180,7 +180,11 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             loss_kd = sum(loss_group)
         elif opt.distill == 'abound':
             # can also add loss to this stage
-            loss_kd = 0
+            #loss_kd = 0
+            g_s = module_list[1](feat_s[1:-1])
+            g_t = feat_t[1:-1]
+            loss_group = criterion_kd(g_s, g_t)
+            loss_kd = sum(loss_group)
         elif opt.distill == 'fsp':
             # can also add loss to this stage
             loss_kd = 0
