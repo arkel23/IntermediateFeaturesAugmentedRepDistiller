@@ -70,7 +70,7 @@ class Extractor(nn.Module):
   
     def forward(self, x, classify_only=True):
         if self.layers == 'last_only':
-            return (self.model(x))
+            return self.model(x)
         x = list(self.model(x).values())
         if classify_only:
             return x[-1]
