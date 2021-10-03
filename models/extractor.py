@@ -11,7 +11,7 @@ class Extractor(nn.Module):
         return_nodes = self.get_return_nodes(model, model_name, layers)
         self.model = feature_extraction.create_feature_extractor(model, return_nodes=return_nodes)
         
-        if layers not in ['default', 'preact']:
+        if layers not in ['default', 'preact', 'last_only']:
             self.pool = nn.Sequential(nn.AdaptiveAvgPool2d(1), Rearrange('b c 1 1 -> b c'))
 
     def get_feat_modules(self):
@@ -68,14 +68,14 @@ class Extractor(nn.Module):
         return feat_m
   
     def forward(self, x, classify_only=True):
-        interm_features = list(self.model(x).values())
+        x = list(self.model(x).values())
         if classify_only:
-            return interm_features[-1]
+            return x[-1]
         else:
             if hasattr(self, 'pool'):
-                return [self.pool(feats) for feats in interm_features[:-1]] + [interm_features[-1]]  
+                return [self.pool(feats) for feats in x[:-1]] + [x[-1]]  
             else:
-                return interm_features
+                return x
             
     def get_return_nodes(self, model, model_name, layers):
         # train_nodes, eval_nodes = feature_extraction.get_graph_node_names(model)
@@ -868,6 +868,20 @@ class Extractor(nn.Module):
                 }
             else:
                 raise NotImplementedError
+            
+        elif layers == 'last_only':
+            if model_name in ['resnet8', 'resnet14', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 
+                              'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2']:
+                return_nodes = {'fc': 'layerminus0'}            
+            elif model_name in ['ResNet18', 'ResNet34', 'ResNet50', 'ShuffleV1', 'ShuffleV2']:
+                return_nodes = {'linear': 'layerminus0'}            
+            elif model_name in ['vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19']:
+                return_nodes = {'classifier': 'layerminus0'}            
+            elif model_name == 'MobileNetV2':
+                return_nodes = {'classifier.0': 'layerminus0'}            
+            else:
+                raise NotImplementedError
+        
         
         else:
             raise NotImplementedError      
