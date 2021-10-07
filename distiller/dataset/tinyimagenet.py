@@ -1,26 +1,24 @@
 from __future__ import print_function
 
 import os
-import glob
 import numpy as np
-from shutil import copyfile
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from torchvision.datasets.utils import check_integrity, download_and_extract_archive, extract_archive
 from PIL import Image
 
 """
+# https://github.com/winycg/HSAKD/blob/main/eval_rep.py
 mean = {
-    'cinic10': (0.47889522, 0.47227842, 0.43047404),
+    'tinyimagenet': (0.485, 0.456, 0.406),
 }
-
 std = {
-    'cinic10': (0.24205776, 0.23828046, 0.25874835),
+    'tinyimagenet': (0.229, 0.224, 0.225),
 }
 """
 
-class CINIC10(datasets.ImageFolder):
-    """`CINIC10 <https://github.com/BayesWatch/cinic-10>`_ Dataset.
+class TinyImageNet(datasets.ImageFolder):
+    """`TinyImageNet <https://github.com/BayesWatch/cinic-10>`_ Dataset.
     Args:
         root (string): Root directory of dataset where directory
             ``cinic-10-trainalrge`` exists or will be saved to if download is set to True.
@@ -37,10 +35,9 @@ class CINIC10(datasets.ImageFolder):
         samples (list): List of (sample path, class_index) tuples
         targets (list): The class_index value for each image in the dataset
     """
-    url = "https://datashare.is.ed.ac.uk/bitstream/handle/10283/3192/CINIC-10.tar.gz"
-    filename = "CINIC-10.tar.gz"
-    extended_dir = 'train-extended'
-    sample_image = 'cifar10-train-10008.png'
+    url = "http://cs231n.stanford.edu/tiny-imagenet-200.zip"
+    filename = "tiny-imagenet-200.zip"
+    sample_image = 'val_1230.JPEG'
     
     def __init__(
             self,
@@ -57,24 +54,24 @@ class CINIC10(datasets.ImageFolder):
             raise RuntimeError('File not found or corrupted.')
             
         if train:
-            dataset_path = os.path.join(root, self.extended_dir)
+            dataset_path = os.path.join(root, 'tiny-imagenet-200', 'train')
         else:
-            dataset_path = os.path.join(root, 'test')
+            dataset_path = os.path.join(root, 'tiny-imagenet-200', 'val')
         
-        super(CINIC10, self).__init__(root=dataset_path, transform=transform,
+        super(TinyImageNet, self).__init__(root=dataset_path, transform=transform,
                                       target_transform=target_transform)
         
         self.parent_root = root
         self.train = train  # training set or test set
 
     def _check_integrity(self, root):
-        check_path = os.path.join(root, self.extended_dir, 'airplane', self.sample_image)
+        check_path = os.path.join(root, 'tiny-imagenet-200', 'val', 'n01443537', self.sample_image)
         if check_integrity(os.path.join(root, self.filename)):
             if check_integrity(check_path):
                 return True
             else:
                 extract_archive(os.path.join(root, self.filename))
-                self.combine_train_val(root)
+                self.reorganize_val(root)
                 if check_integrity(check_path):
                     return True
         return False
@@ -84,25 +81,24 @@ class CINIC10(datasets.ImageFolder):
             print('Files already downloaded and verified')
             return
         download_and_extract_archive(self.url, root, filename=self.filename)
-        self.combine_train_val(root)
-        
-    def combine_train_val(self, root):
-        enlarge_directory = os.path.join(root, self.extended_dir)
-        classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
-        sets = ['train', 'valid']
-        os.makedirs(enlarge_directory, exist_ok=True)
-            
-        for s in sets:
-            for c in classes:
-                os.makedirs(os.path.join(enlarge_directory, c), exist_ok=True)
+        self.reorganize_val(root)
+    
+    def reorganize_val(self, root):
+        root = os.path.join(root, 'tiny-imagenet-200')
+        os.system('mv {} {}'.format(
+            os.path.join(root, 'val'), os.path.join(root, 'val_original')))
+        with open(os.path.join(root, 'val_original', 'val_annotations.txt')) as txt:
+            for line in txt:
+                img_name = line.strip('\n').split('\t')[0]
+                label_name = line.strip('\n').split('\t')[1]
 
-                source_directory = os.path.join(root, s, c)
-                filenames = glob.glob(os.path.join(source_directory, '*.png'))
-                for source_fn in filenames:
-                    base_fn = os.path.basename(source_fn)
-                    dest_fn = os.path.join(enlarge_directory, c, base_fn)
-                    copyfile(source_fn, dest_fn)
-      
+                os.makedirs(os.path.join(root, 'val'), exist_ok=True)
+                os.makedirs(os.path.join(root, 'val', label_name), exist_ok=True)
+                os.system('cp {} {}'.format(
+                    os.path.join(root, 'val_original', 'images', img_name),
+                    os.path.join(root, 'val', label_name, img_name)
+                ))
+
     def __getitem__(self, index):
         img_path, target = self.samples[index]
         
@@ -118,10 +114,9 @@ class CINIC10(datasets.ImageFolder):
             target = self.target_transform(target)
 
         return img, target
-                    
 
-class CINIC10Instance(CINIC10):
-    """CINIC10Instance Dataset.
+class TinyImageNetInstance(TinyImageNet):
+    """TinyImageNetInstance Dataset.
     """
     def __getitem__(self, index):
         img_path, target = self.samples[index]
@@ -140,56 +135,9 @@ class CINIC10Instance(CINIC10):
         return img, target, index
 
 
-def get_cinic10_dataloaders(dataset_path, batch_size=128, num_workers=8, is_instance=False):
+class TinyImageNetInstanceSample(TinyImageNet):
     """
-    cinic 10
-    """
-    data_folder = dataset_path
-
-    train_transform = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
-    ])
-    test_transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
-    ])
-
-    if is_instance:
-        train_set = CINIC10Instance(root=data_folder,
-                                     train=True,
-                                     transform=train_transform)
-        n_data = len(train_set)
-    else:
-        train_set = CINIC10(root=data_folder,
-                                      train=True,
-                                      transform=train_transform)
-    train_loader = DataLoader(train_set,
-                              batch_size=batch_size,
-                              shuffle=True,
-                              num_workers=num_workers,
-                              pin_memory=True)
-
-    test_set = CINIC10(root=data_folder,
-                                 train=False,
-                                 transform=test_transform)
-    test_loader = DataLoader(test_set,
-                             batch_size=64,
-                             shuffle=False,
-                             num_workers=int(num_workers/2),
-                             pin_memory=True)
-
-    if is_instance:
-        return train_loader, test_loader, n_data
-    else:
-        return train_loader, test_loader
-
-
-class CINIC10InstanceSample(CINIC10):
-    """
-    CINIC10Instance+Sample Dataset
+    TinyImageNetInstance+Sample Dataset
     """
     def __init__(self, root, train=True,
                  transform=None, target_transform=None,
@@ -200,7 +148,7 @@ class CINIC10InstanceSample(CINIC10):
         self.mode = mode
         self.is_sample = is_sample
 
-        num_classes = 10
+        num_classes = 200
         num_samples = len(self.samples)
         label = self.targets
         
@@ -256,47 +204,3 @@ class CINIC10InstanceSample(CINIC10):
             neg_idx = np.random.choice(self.cls_negative[target], self.k, replace=replace)
             sample_idx = np.hstack((np.asarray([pos_idx]), neg_idx))
             return img, target, index, sample_idx
-
-
-def get_cinic10_dataloaders_sample(dataset_path, batch_size=128, num_workers=8, k=4096, mode='exact',
-                                    is_sample=True, percent=1.0):
-    """
-    cinic 10
-    """
-    data_folder = dataset_path
-
-    train_transform = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
-    ])
-    test_transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
-    ])
-
-    train_set = CINIC10InstanceSample(root=data_folder,
-                                       train=True,
-                                       transform=train_transform,
-                                       k=k,
-                                       mode=mode,
-                                       is_sample=is_sample,
-                                       percent=percent)
-    n_data = len(train_set)
-    train_loader = DataLoader(train_set,
-                              batch_size=batch_size,
-                              shuffle=True,
-                              num_workers=num_workers,
-                              pin_memory=True)
-
-    test_set = CINIC10(root=data_folder,
-                                 train=False,
-                                 transform=test_transform)
-    test_loader = DataLoader(test_set,
-                             batch_size=64,
-                             shuffle=False,
-                             num_workers=int(num_workers/2),
-                             pin_memory=True)
-
-    return train_loader, test_loader, n_data

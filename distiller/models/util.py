@@ -3,6 +3,15 @@ from __future__ import print_function
 import torch.nn as nn
 import math
 
+class LinearClassifier(nn.Module):
+    def __init__(self, in_features, num_classes):
+        super(LinearClassifier, self).__init__()
+        
+        self.classifier = nn.Linear(in_features, num_classes)
+        
+    def forward(self, x):
+        return self.classifier(x)
+    
 
 class Paraphraser(nn.Module):
     """Paraphrasing Complex Network: Network Compression via Factor Transfer"""

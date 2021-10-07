@@ -2,13 +2,13 @@ from __future__ import print_function, division
 
 import time
 import sys
-import torch
-import torch.optim as optim
-import torch.backends.cudnn as cudnn
-from .util import AverageMeter, return_optimizer_scheduler
 import wandb
+import torch
+import torch.backends.cudnn as cudnn
 
-#def init(model_s, model_t, init_modules, criterion, train_loader, logger, opt):
+from .util import AverageMeter
+from .optim_tools import return_optimizer_scheduler
+
 def init(model_s, model_t, init_modules, criterion, train_loader, opt):
     model_t.eval()
     model_s.eval()
@@ -20,15 +20,6 @@ def init(model_s, model_t, init_modules, criterion, train_loader, opt):
         init_modules.cuda()
         cudnn.benchmark = True
 
-    if opt.model_s in ['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110',
-        'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2'] and opt.distill == 'factor':
-        lr = (opt.base_lr / 5) * (opt.batch_size / 256) #0.01
-    else:
-        lr = opt.lr
-    #optimizer = optim.SGD(init_modules.parameters(),
-    #                      lr=lr,
-    #                      momentum=opt.momentum,
-    #                      weight_decay=opt.weight_decay)
     optimizer, _ = return_optimizer_scheduler(opt, init_modules)
 
     batch_time = AverageMeter()
@@ -55,18 +46,12 @@ def init(model_s, model_t, init_modules, criterion, train_loader, opt):
                     contrast_idx = contrast_idx.cuda()
 
             # ============= forward ==============
-            #preact = (opt.distill == 'abound')
-            #feat_s, _ = model_s(input, is_feat=True, preact=preact)
             out_s = model_s(input, classify_only=False)
             feat_s = out_s[:-1]
             
-            #with torch.no_grad():
-            #    feat_t, _ = model_t(input, is_feat=True, preact=preact)
-            #    feat_t = [f.detach() for f in feat_t]
             with torch.no_grad():
                 out_t = model_t(input, classify_only=False)
                 feat_t = out_t[:-1]
-                #logit_t = out_t[-1]
                 if opt.distill != 'ifacrd':
                     feat_t = [f.detach() for f in feat_t]
         
@@ -97,7 +82,6 @@ def init(model_s, model_t, init_modules, criterion, train_loader, opt):
             end = time.time()
 
         # end of epoch
-        #logger.log_value('init_train_loss', losses.avg, epoch)
         wandb.log({'init_train_loss': losses.avg})
         print('Epoch: [{0}/{1}]\t'
               'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'

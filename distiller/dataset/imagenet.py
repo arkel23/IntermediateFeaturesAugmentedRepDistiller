@@ -61,6 +61,7 @@ class ImageNet(datasets.ImageFolder):
     def _check_integrity(self, root):
         check_path = os.path.join(root, self.sample_image)
         if check_integrity(check_path):
+            print('Files already downloaded and verified')
             return True
         return False
     
@@ -98,54 +99,6 @@ class ImageNetInstance(ImageNet):
             target = self.target_transform(target)
 
         return img, target, index
-
-def get_imagenet_dataloaders(dataset_path, batch_size=128, num_workers=8, is_instance=False):
-    """
-    imagenet 10
-    """
-    data_folder = dataset_path
-
-    train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(224),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
-    ])
-    test_transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
-    ])
-
-    if is_instance:
-        train_set = ImageNetInstance(root=data_folder,
-                                     train=True,
-                                     transform=train_transform)
-        n_data = len(train_set)
-    else:
-        train_set = ImageNet(root=data_folder,
-                                      train=True,
-                                      transform=train_transform)
-    train_loader = DataLoader(train_set,
-                              batch_size=batch_size,
-                              shuffle=True,
-                              num_workers=num_workers,
-                              pin_memory=True)
-
-    test_set = ImageNet(root=data_folder,
-                                 train=False,
-                                 transform=test_transform)
-    test_loader = DataLoader(test_set,
-                             batch_size=64,
-                             shuffle=False,
-                             num_workers=int(num_workers/2),
-                             pin_memory=True)
-
-    if is_instance:
-        return train_loader, test_loader, n_data
-    else:
-        return train_loader, test_loader
 
 
 class ImageNetInstanceSample(ImageNet):
@@ -217,49 +170,3 @@ class ImageNetInstanceSample(ImageNet):
             neg_idx = np.random.choice(self.cls_negative[target], self.k, replace=replace)
             sample_idx = np.hstack((np.asarray([pos_idx]), neg_idx))
             return img, target, index, sample_idx
-
-
-def get_imagenet_dataloaders_sample(dataset_path, batch_size=128, num_workers=8, k=4096, mode='exact',
-                                    is_sample=True, percent=1.0):
-    """
-    imagenet 10
-    """
-    data_folder = dataset_path
-
-    train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(224),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
-    ])
-    test_transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize((0.47889522, 0.47227842, 0.43047404), (0.24205776, 0.23828046, 0.25874835)),
-    ])
-
-    train_set = ImageNetInstanceSample(root=data_folder,
-                                       train=True,
-                                       transform=train_transform,
-                                       k=k,
-                                       mode=mode,
-                                       is_sample=is_sample,
-                                       percent=percent)
-    n_data = len(train_set)
-    train_loader = DataLoader(train_set,
-                              batch_size=batch_size,
-                              shuffle=True,
-                              num_workers=num_workers,
-                              pin_memory=True)
-
-    test_set = ImageNet(root=data_folder,
-                                 train=False,
-                                 transform=test_transform)
-    test_loader = DataLoader(test_set,
-                             batch_size=64,
-                             shuffle=False,
-                             num_workers=int(num_workers/2),
-                             pin_memory=True)
-
-    return train_loader, test_loader, n_data

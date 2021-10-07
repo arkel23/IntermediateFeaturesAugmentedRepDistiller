@@ -1,111 +1,18 @@
 # https://github.com/Spijkervet/SimCLR/blob/master/linear_evaluation.py
 # https://github.com/winycg/HSAKD/blob/main/eval_rep.py
-from __future__ import print_function
-
-import os
-import argparse
 import time
-
 import wandb
 import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 
-from models import model_extractor
-
-from dataset.build_dataset import build_dataloader
-
-from helper.util import count_params_single, save_model, summary_stats
-from helper.util import return_optimizer_scheduler, get_model_name
-
-from helper.loops import train_vanilla as train, validate, feature_extraction
-
-class LinearClassifier(nn.Module):
-    def __init__(self, in_features, num_classes):
-        super(LinearClassifier, self).__init__()
-        
-        self.classifier = nn.Linear(in_features, num_classes)
-        
-    def forward(self, x):
-        return self.classifier(x)
-
-def parse_option():
-    
-    parser = argparse.ArgumentParser('argument for training')
-
-    parser.add_argument('--print_freq', type=int, default=100, help='print frequency')
-    parser.add_argument('--save_freq', type=int, default=50, help='save frequency')
-    parser.add_argument('--batch_size', type=int, default=64, help='batch_size')
-    parser.add_argument('--num_workers', type=int, default=4, help='num of workers to use')
-    parser.add_argument('--epochs', type=int, default=100, help='number of training epochs')
-    parser.add_argument('--path_model', type=str, default=None, help='model snapshot')
-
-    # optimization
-    parser.add_argument('--opt', default='sgd', type=str, help='Optimizer (default: "sgd"')
-    parser.add_argument('--base_lr', type=float, default=0.4, help='base learning rate to scale based on batch size')
-    parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
-    parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
-    parser.add_argument('--clip_grad', type=float, default=None, help='Clip gradient norm (default: None, no clipping)')
-    
-    parser.add_argument('--sched', default='warmup_step', type=str, choices=['cosine', 'step', 'warmup_step'],
-                        help='LR scheduler (default: "warmup_step"')
-    parser.add_argument('--warmup_epochs', type=int, default=5, help='epochs to warmup LR, if scheduler supports')
-    parser.add_argument('--decay_rate', type=float, default=0.1, help='decay rate for learning rate')
-    parser.add_argument('--decay_epochs', type=float, default=30, help='epoch interval to decay LR')
-    
-    # dataset
-    parser.add_argument('--dataset', type=str, default='cifar100', 
-                        choices=['cifar10', 'cifar100', 'svhn', 'stl10', 'cinic10', 'tinyimagenet', 'imagenet'], help='dataset')
-    parser.add_argument('--dataset_path', type=str, default='./data/', help='path to download/read datasets')
-    
-    parser.add_argument('-t', '--trial', type=int, default=0, help='the experiment id')
-
-    opt = parser.parse_args()
-
-    if opt.dataset == 'imagenet':
-        opt.image_size = 224
-    else:
-        opt.image_size = 32
- 
-    if opt.sched == 'warmup_step' and opt.warmup_epochs == 5:
-        opt.warmup_epochs = 150
-    
-    opt.model = get_model_name(opt.path_model)
-
-    # set different learning rate from these 4 models
-    if opt.model in ['MobileNetV2', 'ShuffleV1', 'ShuffleV2']:
-        opt.base_lr = opt.base_lr / 5 # base_lr 0.04 and with bs=64 > lr=0.01
-    if opt.model == 'ShuffleV2':
-        raise NotImplementedError
-
-    opt.lr = opt.base_lr * (opt.batch_size / 256)
-
-    opt.model_name = 'linear_{}_{}_is{}_bs{}_blr{}_decay_{}_trial_{}'.format(opt.model, opt.dataset, 
-        opt.image_size, opt.batch_size, opt.base_lr, opt.weight_decay, opt.trial)
-
-    opt.save_folder = os.path.join('save', 'linear', opt.model_name)
-    if not os.path.isdir(opt.save_folder):
-        os.makedirs(opt.save_folder)
-
-    print(opt)
-    return opt
-
-
-def load_model(path_model, n_cls, layers):
-    print('==> loading model')
-    model_name = get_model_name(path_model)
-    model = model_extractor(model_name, num_classes=n_cls, layers=layers)
-    
-    state_dict = torch.load(path_model)['model']
-    for key in list(state_dict.keys())[-2:]:
-        state_dict.pop(key)
-    
-    ret = model.load_state_dict(state_dict, strict=False)
-    print('Missing keys when loading pretrained weights: {}'.format(ret.missing_keys))
-    print('Unexpected keys when loading pretrained weights: {}'.format(ret.unexpected_keys))
-    print('==> done')
-    return model
-
+from distiller.models import LinearClassifier
+from distiller.dataset.loaders import build_dataloaders
+from distiller.helper.parser import parse_option_linear
+from distiller.helper.model_tools import load_model, save_model
+from distiller.helper.optim_tools import return_optimizer_scheduler
+from distiller.helper.util import count_params_single, summary_stats
+from distiller.helper.loops import train_vanilla as train, validate, feature_extraction
 
 def get_features(backbone, train_loader, val_loader, opt):
     train_X, train_y = feature_extraction(train_loader, backbone, opt)
@@ -136,10 +43,10 @@ def main():
     best_acc = 0
     max_memory = 0
 
-    opt = parse_option()
+    opt = parse_option_linear()
     
     # dataloader
-    train_loader, val_loader, n_cls = build_dataloader(opt)
+    train_loader, val_loader, n_cls = build_dataloaders(opt)
     
     # backbone
     backbone = load_model(opt.path_model, n_cls, 'default')
