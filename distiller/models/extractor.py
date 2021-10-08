@@ -40,8 +40,6 @@ model_dict = {
 
 def model_extractor(model_name, num_classes, layers='default'):#, state_dict_path=False):
     m = model_dict[model_name](num_classes=num_classes)
-    #if state_dict_path:
-    #    m.load_state_dict(torch.load(state_dict_path)['model'])
     model = Extractor(m, model_name, layers)
     return model
 
@@ -827,7 +825,7 @@ class Extractor(nn.Module):
                     'block3.layer.0.bn1': 'layerminus3',
                     'bn1': 'layerminus2',
                     'view': 'layerminus1',
-                    'fc': 'layerminus0'                }
+                    'fc': 'layerminus0'}
             elif model_name == 'vgg8':
                 return_nodes = {
                     'relu': 'layerminus6',
@@ -911,7 +909,7 @@ class Extractor(nn.Module):
                 raise NotImplementedError
             
         elif layers == 'last_only':
-            if model_name in ['resnet8', 'resnet14', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 
+            if model_name in ['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 
                               'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2']:
                 return_nodes = {'fc': 'layerminus0'}            
             elif model_name in ['ResNet18', 'ResNet34', 'ResNet50', 'ShuffleV1', 'ShuffleV2']:

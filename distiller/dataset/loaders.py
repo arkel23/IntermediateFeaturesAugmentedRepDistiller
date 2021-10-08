@@ -1,6 +1,6 @@
 import os
 
-from torch.utils.data import DataLoader
+from torch.utils import data
 from torchvision import datasets
 
 from .build_transform import ApplyTransform
@@ -23,14 +23,18 @@ def build_dataloaders(opt, vanilla=True):
     val_set, n_cls = get_val_set(opt.dataset, opt.dataset_path, val_transform)
     n_data = len(train_set)
     
-    train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=True,
-        num_workers=opt.num_workers, pin_memory=True, drop_last=True)    
-    val_loader = DataLoader(val_set, batch_size=64, shuffle=False, 
+    if opt.distributed:
+        train_sampler = data.distributed.DistributedSampler(train_set)
+    else:
+        train_sampler = None
+    train_loader = data.DataLoader(train_set, batch_size=opt.batch_size, shuffle=(train_sampler is None),
+        num_workers=opt.num_workers, pin_memory=True, drop_last=True, sampler=train_sampler)    
+    val_loader = data.DataLoader(val_set, batch_size=64, shuffle=False, 
         num_workers=int(opt.num_workers/2), pin_memory=True)
     
     if vanilla:
         return train_loader, val_loader, n_cls
-    return train_loader, val_loader, n_data, n_cls
+    return train_loader, val_loader, n_cls, n_data
 
 
 def get_val_set(dataset, dataset_path, transform):

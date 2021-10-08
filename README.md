@@ -1,3 +1,8 @@
+Launch with 
+`python -m torch.distributed.run *.py`
+# https://pytorch.org/docs/stable/elastic/run.html#launcher-api 
+
+
 # RepDistiller
 
 This repo:

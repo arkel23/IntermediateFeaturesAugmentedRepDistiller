@@ -1,12 +1,19 @@
+import random
+import numpy as np
 import torch
 import wandb
-            
+     
 def count_params_module_list(module_list):
     return sum([count_params_single(model) for model in module_list])
 
 def count_params_single(model):
     return sum([p.numel() for p in model.parameters()])
+
         
+def random_seed(seed=0, rank=0):
+    torch.manual_seed(seed + rank)
+    random.seed(seed + rank)
+       
 
 def summary_stats(epochs, time_total, best_acc, best_epoch, max_memory, no_params):    
     time_avg = time_total / epochs

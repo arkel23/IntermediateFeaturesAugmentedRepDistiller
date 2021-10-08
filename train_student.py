@@ -2,7 +2,7 @@ import time
 import wandb
 import torch
 import torch.nn as nn
-import torch.backends.cudnn as cudnn
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 from distiller.models import model_extractor, Embed, ConvReg, LinearEmbed
@@ -11,9 +11,10 @@ from distiller.models import Connector, Translator, Paraphraser
 from distiller.dataset.loaders import build_dataloaders
 
 from distiller.helper.parser import parse_option_student
-from distiller.helper.model_tools import load_teacher, save_model
-from distiller.helper.optim_tools import return_optimizer_scheduler
-from distiller.helper.util import count_params_module_list, summary_stats
+from distiller.helper.dist_utils import distribute_bn
+from distiller.helper.model_utils import load_teacher, save_model
+from distiller.helper.optim_utils import return_optimizer_scheduler
+from distiller.helper.misc_utils import count_params_module_list, random_seed, summary_stats
 from distiller.helper.loops import train_distill as train, validate
 from distiller.helper.pretrain import init
 
@@ -27,6 +28,7 @@ def main():
     max_memory = 0
 
     opt = parse_option_student()
+    random_seed(opt.seed, opt.rank)
     
     # dataloader
     train_loader, val_loader, n_cls, n_data = build_dataloaders(opt, vanilla=False)
@@ -150,7 +152,7 @@ def main():
         pass
     else:
         raise NotImplementedError(opt.distill)
-
+    
     criterion_list = nn.ModuleList([])
     criterion_list.append(criterion_cls)    # classification loss
     criterion_list.append(criterion_div)    # KL divergence loss, original knowledge distillation
@@ -162,10 +164,15 @@ def main():
     # append teacher after optimizer to avoid weight_decay
     module_list.append(model_t)
 
+    module_list.to(opt.device)
+    criterion_list.to(opt.device)
     if torch.cuda.is_available():
-        module_list.cuda()
-        criterion_list.cuda()
-        cudnn.benchmark = True
+        torch.backends.cudnn.benchmark = True
+    if opt.distributed:
+        module_list = nn.SyncBatchNorm.convert_sync_batchnorm(module_list)
+        module_list = DDP(module_list, device_ids=[opt.local_rank])
+        criterion_list = nn.SyncBatchNorm.convert_sync_batchnorm(criterion_list)
+        criterion_list = DDP(criterion_list, device_ids=[opt.local_rank])
         
     # validate teacher accuracy
     teacher_acc, _, _ = validate(val_loader, model_t, criterion_cls, opt)
@@ -173,40 +180,47 @@ def main():
 
     # routine
     for epoch in range(1, opt.epochs+1):
+        if opt.distributed:
+            train_loader.sampler.set_epoch(epoch)
+        lr_scheduler.step(epoch)
 
-        lr_scheduler.step(epoch)        
-        print("==> Training...Epoch: {} | LR: {}".format(epoch, optimizer.param_groups[0]['lr']))
         train_acc, train_loss = train(epoch, train_loader, module_list, criterion_list, optimizer, opt)
-        wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss})
-        
         test_acc, test_acc_top5, test_loss = validate(val_loader, model_s, criterion_cls, opt)
-        wandb.log({'test_acc': test_acc, 'test_loss': test_loss, 'test_acc_top5': test_acc_top5})
 
-        # save the best model
-        if test_acc > best_acc:
-            best_acc = test_acc
-            best_epoch = epoch
-            save_model(opt, model_s, epoch, test_acc, mode='best', vanilla=False)
-        # regular saving
-        if epoch % opt.save_freq == 0:
-            save_model(opt, model_s, epoch, test_acc, mode='epoch', vanilla=False)
-        # VRAM memory consumption
-        curr_max_memory = torch.cuda.max_memory_reserved() / (1024 ** 3)
-        if curr_max_memory > max_memory:
-            max_memory = curr_max_memory
-    
-    # save last model     
-    save_model(opt, model_s, epoch, test_acc, mode='last', vanilla=False)
+        if opt.local_rank == 0:
+            if opt.distributed:
+                [distribute_bn(module, opt.world_size, True) for module in module_list]
+            
+            print("==> Training...Epoch: {} | LR: {}".format(epoch, optimizer.param_groups[0]['lr']))
+            wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss})        
+            wandb.log({'test_acc': test_acc, 'test_loss': test_loss, 'test_acc_top5': test_acc_top5})
 
-    # summary stats
-    time_end = time.time()
-    time_total = time_end - time_start
-    
-    no_params_modules = count_params_module_list(module_list)
-    no_params_criterion = count_params_module_list(criterion_list)
-    no_params = no_params_modules + no_params_criterion
-    
-    summary_stats(opt.epochs, time_total, best_acc, best_epoch, max_memory, no_params)
+            # save the best model
+            if test_acc > best_acc:
+                best_acc = test_acc
+                best_epoch = epoch
+                save_model(opt, model_s, epoch, test_acc, mode='best', vanilla=False)
+            # regular saving
+            if epoch % opt.save_freq == 0:
+                save_model(opt, model_s, epoch, test_acc, mode='epoch', vanilla=False)
+            # VRAM memory consumption
+            curr_max_memory = torch.cuda.max_memory_reserved() / (1024 ** 3)
+            if curr_max_memory > max_memory:
+                max_memory = curr_max_memory
+                
+    if opt.local_rank == 0:  
+        # save last model     
+        save_model(opt, model_s, epoch, test_acc, mode='last', vanilla=False)
+
+        # summary stats
+        time_end = time.time()
+        time_total = time_end - time_start
+        
+        no_params_modules = count_params_module_list(module_list)
+        no_params_criterion = count_params_module_list(criterion_list)
+        no_params = no_params_modules + no_params_criterion
+        
+        summary_stats(opt.epochs, time_total, best_acc, best_epoch, max_memory, no_params)
 
 
 if __name__ == '__main__':

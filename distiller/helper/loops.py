@@ -1,3 +1,5 @@
+# https://github.com/rwightman/pytorch-image-models/blob/b544ad4d3fcd02057ab9f43b118290f2a089566f/timm/utils/distributed.py#L11
+# https://github.com/rwightman/pytorch-image-models/blob/master/train.py
 from __future__ import print_function, division
 
 import sys
@@ -5,8 +7,8 @@ import time
 import torch
 import numpy as np
 
-from .util import AverageMeter, accuracy
-
+from .misc_utils import AverageMeter, accuracy
+from .dist_utils import reduce_tensor
 
 def train_vanilla(epoch, train_loader, model, criterion, optimizer, opt):
     """vanilla training"""
@@ -30,35 +32,45 @@ def train_vanilla(epoch, train_loader, model, criterion, optimizer, opt):
         # ===================forward=====================
         output = model(input)
         loss = criterion(output, target)
-
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
-        losses.update(loss.item(), input.size(0))
-        top1.update(acc1[0], input.size(0))
-        top5.update(acc5[0], input.size(0))
-
+        
         # ===================backward=====================
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         # ===================meters=====================
+        torch.cuda.synchronize()
         batch_time.update(time.time() - end)
         end = time.time()
 
         # print info
         if idx % opt.print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   epoch, idx, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5))
-            sys.stdout.flush()
-
-    print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
-          .format(top1=top1, top5=top5))
+            if opt.distributed:
+                reduced_loss = reduce_tensor(loss.data, opt.world_size)
+                acc1 = reduce_tensor(acc1, opt.world_size)
+                acc5 = reduce_tensor(acc5, opt.world_size)
+            else:
+                reduced_loss = loss.data
+                
+            losses.update(reduced_loss.item(), input.size(0))
+            top1.update(acc1.item(), input.size(0))
+            top5.update(acc5.item(), input.size(0))
+            
+            if opt.local_rank == 0:
+                print('Epoch: [{0}][{1}/{2}]\t'
+                    'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                    'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                    'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                    'Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                    'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                    epoch, idx, len(train_loader), batch_time=batch_time,
+                    data_time=data_time, loss=losses, top1=top1, top5=top5))
+                sys.stdout.flush()
+    
+    if opt.local_rank == 0:
+        print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
+            .format(top1=top1, top5=top5))
 
     return top1.avg, losses.avg
 
@@ -194,33 +206,48 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
         loss = opt.gamma * loss_cls + opt.alpha * loss_div + opt.beta * loss_kd
 
         acc1, acc5 = accuracy(logit_s, target, topk=(1, 5))
-        losses.update(loss.item(), input.size(0))
-        top1.update(acc1[0], input.size(0))
-        top5.update(acc5[0], input.size(0))
-
+        
         # ===================backward=====================
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         # ===================meters=====================
+        
+        losses.update(loss.item(), input.size(0))
+        top1.update(acc1[0], input.size(0))
+        top5.update(acc5[0], input.size(0))
+
+        torch.cuda.synchronize()        
         batch_time.update(time.time() - end)
         end = time.time()
 
         # print info
         if idx % opt.print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                epoch, idx, len(train_loader), batch_time=batch_time,
-                data_time=data_time, loss=losses, top1=top1, top5=top5))
-            sys.stdout.flush()
-
-    print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
-          .format(top1=top1, top5=top5))
+            if opt.distributed:
+                reduced_loss = reduce_tensor(loss.data, opt.world_size)
+                acc1 = reduce_tensor(acc1, opt.world_size)
+                acc5 = reduce_tensor(acc5, opt.world_size)
+            else:
+                reduced_loss = loss.data
+                
+            losses.update(reduced_loss.item(), input.size(0))
+            top1.update(acc1.item(), input.size(0))
+            top5.update(acc5.item(), input.size(0))
+            
+            if opt.local_rank == 0:
+                print('Epoch: [{0}][{1}/{2}]\t'
+                    'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                    'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                    'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                    'Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                    'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                    epoch, idx, len(train_loader), batch_time=batch_time,
+                    data_time=data_time, loss=losses, top1=top1, top5=top5))
+                sys.stdout.flush()
+    if opt.local_rank == 0:
+        print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
+            .format(top1=top1, top5=top5))
 
     return top1.avg, losses.avg
 
@@ -247,10 +274,18 @@ def validate(val_loader, model, criterion, opt):
             # compute output
             output = model(input)
             loss = criterion(output, target)
-
-            # measure accuracy and record loss
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
-            losses.update(loss.item(), input.size(0))
+            
+            if opt.distributed:
+                reduced_loss = reduce_tensor(loss.data, opt.world_size)
+                acc1 = reduce_tensor(acc1, opt.world_size)
+                acc5 = reduce_tensor(acc5, opt.world_size)
+            else:
+                reduced_loss = loss.data
+            
+            torch.cuda.synchronize()
+            
+            losses.update(reduced_loss.item(), input.size(0))
             top1.update(acc1[0], input.size(0))
             top5.update(acc5[0], input.size(0))
 
@@ -258,17 +293,18 @@ def validate(val_loader, model, criterion, opt):
             batch_time.update(time.time() - end)
             end = time.time()
 
-            if idx % opt.print_freq == 0:
+            if idx % opt.print_freq == 0 and opt.local_rank == 0:
                 print('Test: [{0}/{1}]\t'
-                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                      'Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                      'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                       idx, len(val_loader), batch_time=batch_time, loss=losses,
-                       top1=top1, top5=top5))
-
-        print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
-              .format(top1=top1, top5=top5))
+                    'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                    'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                    'Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                    'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                    idx, len(val_loader), batch_time=batch_time, loss=losses,
+                    top1=top1, top5=top5))
+        
+        if opt.local_rank == 0:
+            print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
+                .format(top1=top1, top5=top5))
 
     return top1.avg, top5.avg, losses.avg
 
@@ -288,10 +324,11 @@ def feature_extraction(loader, backbone, opt):
         feature_vector.extend(features.cpu().detach().numpy())
         labels_vector.extend(y.numpy())
 
-        if idx % opt.print_freq == 0:
+        if idx % opt.print_freq == 0 and opt.local_rank == 0:
             print(f"Step [{idx}/{len(loader)}]\t Computing features...")
 
     feature_vector = np.array(feature_vector)
     labels_vector = np.array(labels_vector)
-    print("Features shape {}".format(feature_vector.shape))
+    if opt.local_rank == 0:
+        print("Features shape {}".format(feature_vector.shape))
     return feature_vector, labels_vector
