@@ -13,7 +13,6 @@ def reduce_tensor(tensor, n):
 
 
 def distribute_bn(model, world_size, reduce=False):
-    print('distributing bn')
     # ensure every node has the same running bn stats
     for bn_name, bn_buf in unwrap_model(model).named_buffers(recurse=True):
         if ('running_mean' in bn_name) or ('running_var' in bn_name):
@@ -24,5 +23,3 @@ def distribute_bn(model, world_size, reduce=False):
             else:
                 # broadcast bn stats from rank 0 to whole group
                 torch.distributed.broadcast(bn_buf, 0)
-    print('finished distributing bn')
-

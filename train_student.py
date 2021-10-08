@@ -11,7 +11,6 @@ from distiller.models import Connector, Translator, Paraphraser
 from distiller.dataset.loaders import build_dataloaders
 
 from distiller.helper.parser import parse_option_student
-from distiller.helper.dist_utils import distribute_bn
 from distiller.helper.model_utils import load_teacher, save_model
 from distiller.helper.optim_utils import return_optimizer_scheduler
 from distiller.helper.misc_utils import count_params_module_list, random_seed, summary_stats
@@ -174,10 +173,11 @@ def main():
         module_list = DDP(module_list, device_ids=[opt.local_rank])
         criterion_list = nn.SyncBatchNorm.convert_sync_batchnorm(criterion_list)
         criterion_list = DDP(criterion_list, device_ids=[opt.local_rank])
-        
+    
     # validate teacher accuracy
     teacher_acc, _, _ = validate(val_loader, model_t, criterion_cls, opt)
-    print('teacher accuracy: ', teacher_acc)
+    if opt.local_rank == 0:
+        print('teacher accuracy: ', teacher_acc)
 
     # routine
     for epoch in range(1, opt.epochs+1):
@@ -189,9 +189,6 @@ def main():
         test_acc, test_acc_top5, test_loss = validate(val_loader, model_s, criterion_cls, opt)
 
         if opt.local_rank == 0:
-            if opt.distributed:
-                [distribute_bn(module, opt.world_size, True) for module in module_list]
-            
             print("==> Training...Epoch: {} | LR: {}".format(epoch, optimizer.param_groups[0]['lr']))
             wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss})        
             wandb.log({'test_acc': test_acc, 'test_loss': test_loss, 'test_acc_top5': test_acc_top5})

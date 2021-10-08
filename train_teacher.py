@@ -52,16 +52,15 @@ def main():
             print("==> Training...Epoch: {} | LR: {}".format(epoch, optimizer.param_groups[0]['lr']))
             wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss, 
                        'test_acc': test_acc, 'test_loss': test_loss})
+            
             # save the best model
             if test_acc > best_acc:
                 best_acc = test_acc
                 best_epoch = epoch
                 save_model(opt, model, epoch, test_acc, mode='best', optimizer=optimizer)
-            print('ckpt2')
             # regular saving
             if epoch % opt.save_freq == 0:
                 save_model(opt, model, epoch, test_acc, mode='epoch', optimizer=optimizer)
-            print('ckpt3')
             # VRAM memory consumption
             curr_max_memory = torch.cuda.max_memory_reserved() / (1024 ** 3)
             if curr_max_memory > max_memory:

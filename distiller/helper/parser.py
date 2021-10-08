@@ -10,8 +10,6 @@ def parse_common():
 
     parser.add_argument('-t', '--trial', type=int, default=0, help='the experiment id')
     parser.add_argument('--seed', default=0, type=int, help='random seed')
-    parser.add_argument('--worker-seeding', type=str, default='all',
-                    help='worker seed mode (default: all)')
     parser.add_argument('--print_freq', type=int, default=100, help='print frequency')
     parser.add_argument('--save_freq', type=int, default=40, help='save frequency')
     parser.add_argument('--batch_size', type=int, default=64, help='batch_size')

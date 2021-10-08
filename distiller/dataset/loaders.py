@@ -25,12 +25,15 @@ def build_dataloaders(opt, vanilla=True):
     
     if opt.distributed:
         train_sampler = data.distributed.DistributedSampler(train_set)
+        val_sampler = data.distributed.DistributedSampler(val_set)
     else:
         train_sampler = None
+        val_sampler = None
+        
     train_loader = data.DataLoader(train_set, batch_size=opt.batch_size, shuffle=(train_sampler is None),
         num_workers=opt.num_workers, pin_memory=True, drop_last=True, sampler=train_sampler)    
     val_loader = data.DataLoader(val_set, batch_size=64, shuffle=False, 
-        num_workers=int(opt.num_workers/2), pin_memory=True)
+        num_workers=int(opt.num_workers/2), pin_memory=True, sampler=val_sampler)
     
     if vanilla:
         return train_loader, val_loader, n_cls

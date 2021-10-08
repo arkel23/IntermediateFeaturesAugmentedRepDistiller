@@ -247,6 +247,9 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
             .format(top1=top1, top5=top5))
 
+    if opt.distributed:
+        distribute_bn(module_list, opt.world_size, True)        
+
     return top1.avg, losses.avg
 
 
