@@ -34,6 +34,10 @@ def parse_common():
                         choices=['cifar10', 'cifar100', 'svhn', 'stl10', 'cinic10', 'tinyimagenet', 'imagenet'], help='dataset')
     parser.add_argument('--dataset_path', type=str, default='./data/', help='path to download/read datasets')
     
+    # distributed
+    parser.add_argument('--dist_eval', action='store_true', 
+                        help='validate using dist sampler (else do it on one gpu)')
+    
     return parser
 
 

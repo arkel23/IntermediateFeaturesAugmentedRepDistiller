@@ -23,12 +23,12 @@ def build_dataloaders(opt, vanilla=True):
     val_set, n_cls = get_val_set(opt.dataset, opt.dataset_path, val_transform)
     n_data = len(train_set)
     
+    train_sampler = None
+    val_sampler = None            
     if opt.distributed:
         train_sampler = data.distributed.DistributedSampler(train_set)
-        val_sampler = data.distributed.DistributedSampler(val_set)
-    else:
-        train_sampler = None
-        val_sampler = None
+        if opt.dist_eval:
+            val_sampler = data.distributed.DistributedSampler(val_set)
         
     train_loader = data.DataLoader(train_set, batch_size=opt.batch_size, shuffle=(train_sampler is None),
         num_workers=opt.num_workers, pin_memory=True, drop_last=True, sampler=train_sampler)    
