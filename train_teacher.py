@@ -46,9 +46,10 @@ def main():
         lr_scheduler.step(epoch)
         print('ckpt start')
         train_acc, train_loss = train(epoch, train_loader, model, criterion, optimizer, opt)
-        test_acc, test_loss = validate(val_loader, model, criterion, opt)
-
+        
         if opt.local_rank == 0:
+            test_acc, test_loss = validate(val_loader, model, criterion, opt)
+
             print("==> Training...Epoch: {} | LR: {}".format(epoch, optimizer.param_groups[0]['lr']))
             wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss, 
                        'test_acc': test_acc, 'test_loss': test_loss})
