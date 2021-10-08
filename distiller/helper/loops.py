@@ -213,11 +213,6 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
         optimizer.step()
 
         # ===================meters=====================
-        
-        losses.update(loss.item(), input.size(0))
-        top1.update(acc1[0], input.size(0))
-        top5.update(acc5[0], input.size(0))
-
         torch.cuda.synchronize()        
         batch_time.update(time.time() - end)
         end = time.time()
@@ -276,6 +271,8 @@ def validate(val_loader, model, criterion, opt):
             loss = criterion(output, target)
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
             
+            torch.cuda.synchronize()
+            
             if opt.distributed:
                 reduced_loss = reduce_tensor(loss.data, opt.world_size)
                 acc1 = reduce_tensor(acc1, opt.world_size)
@@ -283,11 +280,9 @@ def validate(val_loader, model, criterion, opt):
             else:
                 reduced_loss = loss.data
             
-            torch.cuda.synchronize()
-            
             losses.update(reduced_loss.item(), input.size(0))
-            top1.update(acc1[0], input.size(0))
-            top5.update(acc5[0], input.size(0))
+            top1.update(acc1.item(), input.size(0))
+            top5.update(acc5.item(), input.size(0))
 
             # measure elapsed time
             batch_time.update(time.time() - end)
