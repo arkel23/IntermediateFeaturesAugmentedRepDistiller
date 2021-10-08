@@ -73,7 +73,7 @@ def train_vanilla(epoch, train_loader, model, criterion, optimizer, opt):
             .format(top1=top1, top5=top5))
         
         if opt.distributed:
-            distribute_bn(model, opt.world_size, True)        
+            distribute_bn(model, opt.world_size, False)        
 
     return top1.avg, losses.avg
 
