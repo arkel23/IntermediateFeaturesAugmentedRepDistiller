@@ -44,16 +44,17 @@ def main():
         if opt.distributed:
             train_loader.sampler.set_epoch(epoch)
         lr_scheduler.step(epoch)
-        print('ckpt start')
+        print(opt.local_rank, 'start train')
         train_acc, train_loss = train(epoch, train_loader, model, criterion, optimizer, opt)
-        
+        print(opt.local_rank, 'start val')
+        test_acc, test_loss = validate(val_loader, model, criterion, opt)
+        print(opt.local_rank, 'finished val')
         if opt.local_rank == 0:
-            test_acc, test_loss = validate(val_loader, model, criterion, opt)
-
             print("==> Training...Epoch: {} | LR: {}".format(epoch, optimizer.param_groups[0]['lr']))
             wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss, 
                        'test_acc': test_acc, 'test_loss': test_loss})
             # save the best model
+            print('ckpt1')
             if test_acc > best_acc:
                 best_acc = test_acc
                 best_epoch = epoch
