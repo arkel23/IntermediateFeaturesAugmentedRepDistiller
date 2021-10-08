@@ -8,7 +8,7 @@ import torch
 import numpy as np
 
 from .misc_utils import AverageMeter, accuracy
-from .dist_utils import reduce_tensor
+from .dist_utils import reduce_tensor, distribute_bn
 
 def train_vanilla(epoch, train_loader, model, criterion, optimizer, opt):
     """vanilla training"""
@@ -71,6 +71,9 @@ def train_vanilla(epoch, train_loader, model, criterion, optimizer, opt):
     if opt.local_rank == 0:
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
             .format(top1=top1, top5=top5))
+        
+        if opt.distributed:
+            distribute_bn(model, opt.world_size, True)        
 
     return top1.avg, losses.avg
 
@@ -301,7 +304,7 @@ def validate(val_loader, model, criterion, opt):
             print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
                 .format(top1=top1, top5=top5))
 
-    return top1.avg, top5.avg, losses.avg
+    return top1.avg, losses.avg
 
 
 def feature_extraction(loader, backbone, opt):

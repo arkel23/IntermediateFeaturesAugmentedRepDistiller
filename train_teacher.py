@@ -5,7 +5,6 @@ import torch
 from distiller.models import model_extractor
 from distiller.dataset.loaders import build_dataloaders
 from distiller.helper.parser import parse_option_teacher
-from distiller.helper.dist_utils import distribute_bn
 from distiller.helper.misc_utils import count_params_single, random_seed, summary_stats
 from distiller.helper.model_utils import save_model
 from distiller.helper.optim_utils import return_optimizer_scheduler
@@ -45,26 +44,24 @@ def main():
         if opt.distributed:
             train_loader.sampler.set_epoch(epoch)
         lr_scheduler.step(epoch)
-        
+        print('ckpt start')
         train_acc, train_loss = train(epoch, train_loader, model, criterion, optimizer, opt)
-        test_acc, test_acc_top5, test_loss = validate(val_loader, model, criterion, opt)
+        test_acc, test_loss = validate(val_loader, model, criterion, opt)
 
         if opt.local_rank == 0:
-            if opt.distributed:
-                distribute_bn(model, opt.world_size, True)
-
             print("==> Training...Epoch: {} | LR: {}".format(epoch, optimizer.param_groups[0]['lr']))
             wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss, 
-                       'test_acc': test_acc, 'test_loss': test_loss, 'test_acc_top5': test_acc_top5})
-            
+                       'test_acc': test_acc, 'test_loss': test_loss})
             # save the best model
             if test_acc > best_acc:
                 best_acc = test_acc
                 best_epoch = epoch
                 save_model(opt, model, epoch, test_acc, mode='best', optimizer=optimizer)
+            print('ckpt2')
             # regular saving
             if epoch % opt.save_freq == 0:
                 save_model(opt, model, epoch, test_acc, mode='epoch', optimizer=optimizer)
+            print('ckpt3')
             # VRAM memory consumption
             curr_max_memory = torch.cuda.max_memory_reserved() / (1024 ** 3)
             if curr_max_memory > max_memory:
