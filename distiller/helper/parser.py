@@ -36,6 +36,9 @@ def parse_common():
                         choices=['cifar10', 'cifar100', 'svhn', 'stl10', 'cinic10', 'tinyimagenet', 'imagenet'], help='dataset')
     parser.add_argument('--dataset_path', type=str, default='./data/', help='path to download/read datasets')
     
+    # distributed
+    parser.add_argument('--local_rank', type=int, default=0)
+    
     return parser
 
 
@@ -63,11 +66,11 @@ def add_adjust_common_dependent(opt):
     opt.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     opt.world_size = 1
     opt.rank = 0  # global rank
-    opt.local_rank = 0
+    #opt.local_rank = 0
     
     opt.distributed = False
     if 'WORLD_SIZE' in os.environ:
-        opt.local_rank = int(os.environ['LOCAL_RANK'])
+        #opt.local_rank = int(os.environ['LOCAL_RANK'])
         opt.distributed = int(os.environ['WORLD_SIZE']) > 1
     
     if opt.distributed:
