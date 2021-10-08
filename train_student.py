@@ -38,8 +38,9 @@ def main():
     model_s = model_extractor(opt.model_s, num_classes=n_cls, layers=opt.layers)
     
     # init wandb logger
-    wandb.init(config=opt)
-    wandb.run.name = '{}'.format(opt.model_name)
+    if opt.local_rank == 0:
+        wandb.init(config=opt)
+        wandb.run.name = '{}'.format(opt.model_name)
 
     data = torch.randn(2, 3, opt.image_size, opt.image_size)
     model_t.eval()

@@ -70,6 +70,7 @@ def main():
     if torch.cuda.is_available():
         torch.backends.cudnn.benchmark = True
 
+    if opt.local_rank == 0:
     wandb.init(config=opt)
     wandb.run.name = '{}'.format(opt.model_name)
     

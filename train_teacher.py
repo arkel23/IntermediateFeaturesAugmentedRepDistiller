@@ -36,8 +36,9 @@ def main():
     if torch.cuda.is_available():
         torch.backends.cudnn.benchmark = True
 
-    wandb.init(config=opt)
-    wandb.run.name = '{}'.format(opt.model_name)
+    if opt.local_rank == 0:
+        wandb.init(config=opt)
+        wandb.run.name = '{}'.format(opt.model_name)
 
     # routine
     for epoch in range(1, opt.epochs+1):
