@@ -185,13 +185,14 @@ def main():
             train_loader.sampler.set_epoch(epoch)
         lr_scheduler.step(epoch)
 
-        train_acc, train_loss = train(epoch, train_loader, module_list, criterion_list, optimizer, opt)
-        test_acc, test_acc_top5, test_loss = validate(val_loader, model_s, criterion_cls, opt)
+        train_acc, train_loss, loss_cls, loss_div, loss_kd = train(epoch, train_loader, module_list, criterion_list, optimizer, opt)
+        test_acc, test_loss = validate(val_loader, model_s, criterion_cls, opt)
 
         if opt.local_rank == 0:
             print("==> Training...Epoch: {} | LR: {}".format(epoch, optimizer.param_groups[0]['lr']))
-            wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss})        
-            wandb.log({'test_acc': test_acc, 'test_loss': test_loss, 'test_acc_top5': test_acc_top5})
+            wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss, 
+                       'train_loss_cls': loss_cls, 'train_loss_div': loss_div, 'train_loss_kd': loss_kd,
+                       'test_acc': test_acc, 'test_loss': test_loss})
 
             # save the best model
             if test_acc > best_acc:

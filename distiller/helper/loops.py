@@ -101,6 +101,9 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
+    losses_cls = AverageMeter()
+    losses_div = AverageMeter()
+    losses_kd = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
 
@@ -224,12 +227,21 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
         if idx % opt.print_freq == 0:
             if opt.distributed:
                 reduced_loss = reduce_tensor(loss.data, opt.world_size)
+                loss_cls = reduce_tensor(loss_cls.data, opt.world_size)
+                loss_div = reduce_tensor(loss_div.data, opt.world_size)
+                loss_kd = reduce_tensor(loss_kd.data, opt.world_size)
                 acc1 = reduce_tensor(acc1, opt.world_size)
                 acc5 = reduce_tensor(acc5, opt.world_size)
             else:
                 reduced_loss = loss.data
-                
+                loss_cls = loss_cls.data
+                loss_div = loss_div.data
+                loss_kd = loss_kd.data
+            
             losses.update(reduced_loss.item(), input.size(0))
+            losses_cls.update(loss_cls.item(), input.size(0))
+            losses_div.update(loss_div.item(), input.size(0))
+            losses_kd.update(loss_kd.item(), input.size(0))
             top1.update(acc1.item(), input.size(0))
             top5.update(acc5.item(), input.size(0))
             
@@ -238,10 +250,15 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
                     'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                     'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                     'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                    'Loss cls {losses_cls.val:.4f} ({losses_cls.avg:.4f})\t'
+                    'Loss div {losses_div.val:.4f} ({losses_div.avg:.4f})\t'
+                    'Loss kd {losses_kd.val:.4f} ({losses_kd.avg:.4f})\t'
                     'Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                     'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                     epoch, idx, len(train_loader), batch_time=batch_time,
-                    data_time=data_time, loss=losses, top1=top1, top5=top5))
+                    data_time=data_time, loss=losses, losses_cls=losses_cls,
+                    losses_div=losses_div, losses_kd=losses_kd,
+                    top1=top1, top5=top5))
                 sys.stdout.flush()
     if opt.local_rank == 0:
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
@@ -250,7 +267,7 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
     if opt.distributed:
         distribute_bn(module_list, opt.world_size, True)        
 
-    return top1.avg, losses.avg
+    return top1.avg, losses.avg, losses_cls.avg, losses_div.avg, losses_kd.avg
 
 
 def validate(val_loader, model, criterion, opt):

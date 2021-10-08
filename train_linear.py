@@ -71,8 +71,8 @@ def main():
         torch.backends.cudnn.benchmark = True
 
     if opt.local_rank == 0:
-    wandb.init(config=opt)
-    wandb.run.name = '{}'.format(opt.model_name)
+        wandb.init(config=opt)
+        wandb.run.name = '{}'.format(opt.model_name)
     
     (train_X, train_y, test_X, test_y) = get_features(backbone, train_loader, val_loader, opt)
 
@@ -87,12 +87,12 @@ def main():
         lr_scheduler.step(epoch)       
         
         train_acc, train_loss = train(epoch, arr_train_loader, classifier, criterion, optimizer, opt)
-        test_acc, test_acc_top5, test_loss = validate(arr_test_loader, classifier, criterion, opt)
+        test_acc, test_loss = validate(arr_test_loader, classifier, criterion, opt)
 
         if opt.local_rank == 0:
             print("==> Training...Epoch: {} | LR: {}".format(epoch, optimizer.param_groups[0]['lr']))
-            wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss})
-            wandb.log({'test_acc': test_acc, 'test_loss': test_loss, 'test_acc_top5': test_acc_top5})  
+            wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss,
+                       'test_acc': test_acc, 'test_loss': test_loss})  
         
             # save the best model
             if test_acc > best_acc:
