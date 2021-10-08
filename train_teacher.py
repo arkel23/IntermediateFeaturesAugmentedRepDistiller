@@ -54,8 +54,9 @@ def main():
                 distribute_bn(model, opt.world_size, True)
 
             print("==> Training...Epoch: {} | LR: {}".format(epoch, optimizer.param_groups[0]['lr']))
-            wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss, 
-                       'test_acc': test_acc, 'test_loss': test_loss, 'test_acc_top5': test_acc_top5})
+            print(epoch, train_acc, train_loss, test_acc, test_loss, test_acc_top5)
+            #wandb.log({'epoch': epoch, 'train_acc': train_acc, 'train_loss': train_loss, 
+            #           'test_acc': test_acc, 'test_loss': test_loss, 'test_acc_top5': test_acc_top5})
             print('ckpt1')
             # save the best model
             if test_acc > best_acc:
