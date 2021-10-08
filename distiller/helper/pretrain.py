@@ -35,7 +35,10 @@ def init(model_s, model_t, init_modules, criterion, train_loader, opt):
     if opt.model_s in ['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110',
         'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2'] and opt.distill == 'factor':
         opt.base_lr = opt.base_lr / 5
-        opt.lr = opt.base_lr * (opt.batch_size / 256)
+        if opt.distributed:
+            opt.lr = opt.base_lr * ((opt.world_size * opt.batch_size) / 256)
+        else:
+            opt.lr = opt.base_lr * (opt.batch_size / 256)
     optimizer, _ = return_optimizer_scheduler(opt, init_modules)
 
     batch_time = AverageMeter()

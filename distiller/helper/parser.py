@@ -74,6 +74,8 @@ def add_adjust_common_dependent(opt):
         torch.distributed.init_process_group(backend='nccl', init_method='env://')
         opt.world_size = torch.distributed.get_world_size()
         opt.rank = torch.distributed.get_rank()
+        
+        opt.lr = opt.base_lr * ((opt.world_size * opt.batch_size) / 256)
     
     return opt
  
