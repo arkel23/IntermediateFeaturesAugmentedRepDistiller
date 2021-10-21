@@ -43,6 +43,9 @@ def parse_common():
 
 def add_adjust_common_dependent(opt):
     
+    if opt.distill == 'ifacrdv2':
+        opt.simclr_aug = True
+    
     if opt.dataset == 'imagenet':
         opt.image_size = 224
     else:
@@ -87,11 +90,11 @@ def add_adjust_common_dependent(opt):
 def parse_option_teacher():
     
     parser = parse_common()
-    parser.add_argument('--model', type=str, default='resnet8',
-                        choices=['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110',
-                                 'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2',
-                                 'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet18', 'ResNet34', 'ResNet50',
-                                 'MobileNetV2', 'ShuffleV1', 'ShuffleV2'])
+    parser.add_argument('--model', type=str, default='resnet8', choices=[
+        'resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 
+        'resnet110', 'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 
+        'wrn_40_2', 'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet18', 
+        'ResNet34', 'ResNet50', 'MobileNetV2', 'ShuffleV1', 'ShuffleV2'])
     opt = parser.parse_args()
     
     opt = add_adjust_common_dependent(opt)
@@ -130,17 +133,17 @@ def parse_option_student():
     
     parser = parse_common()
     # model
-    parser.add_argument('--model_s', type=str, default='resnet8',
-                        choices=['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110',
-                                 'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2',
-                                 'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet18', 'ResNet34', 'ResNet50',
-                                 'MobileNetV2', 'ShuffleV1', 'ShuffleV2'])
+    parser.add_argument('--model_s', type=str, default='resnet8', choices=[
+        'resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 
+        'resnet110', 'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 
+        'wrn_40_2', 'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet18', 
+        'ResNet34', 'ResNet50', 'MobileNetV2', 'ShuffleV1', 'ShuffleV2'])
     parser.add_argument('--path_t', type=str, default=None, help='teacher model snapshot')
 
     # distillation
-    parser.add_argument('--distill', type=str, default='kd', choices=['ifacrd', 'kd', 'hint', 'attention', 'similarity',
-                                                                      'correlation', 'vid', 'crd', 'kdsvd', 'fsp',
-                                                                      'rkd', 'pkt', 'abound', 'factor', 'nst'])    
+    parser.add_argument('--distill', type=str, default='kd', choices=[
+        'ifacrd', 'ifacrdv2', 'kd', 'hint', 'attention', 'similarity', 'correlation', 
+        'vid', 'crd', 'kdsvd', 'fsp', 'rkd', 'pkt', 'abound', 'factor', 'nst'])    
     parser.add_argument('--init_epochs', type=int, default=30, help='init training for two-stage methods')
     parser.add_argument('-r', '--gamma', type=float, default=1, help='weight for classification')
     parser.add_argument('-a', '--alpha', type=float, default=0, help='weight balance for KD')
@@ -174,12 +177,21 @@ def parse_option_student():
                         help='dimension of projector mlp hidden layer space')
     parser.add_argument('--proj_ln', action='store_true', help='Use projector mlp with LN instead of BN')
     
+    parser.add_argument('--simclr_aug', action='store_true', help='Use simclr augs')
+    parser.add_argument('--cont_s', type=int, default=0, choices=[0, 1, 2])
+    parser.add_argument('--cont_t', type=int, default=0, choices=[0, 1, 2, 3, 4], 
+        help='0 uses no aug, 1 uses aug1, 2 uses aug2, 3 uses aug1 and 2, 4 uses no aug, aug1 and aug2')
+    
     # hint layer
     parser.add_argument('--hint_layer', default=2, type=int, choices=[0, 1, 2, 3, 4])
     
     opt = parser.parse_args()
 
-    opt.model_t = get_model_name(opt.path_t)
+    if opt.path_t:
+        opt.model_t = get_model_name(opt.path_t)
+    else:
+        opt.model_t = opt.model_s
+    
     opt = add_adjust_common_dependent(opt)
     # set layers argument to blocks when using any method that is not ifacrd
     if opt.distill != 'ifacrd':

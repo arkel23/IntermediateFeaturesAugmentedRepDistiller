@@ -19,7 +19,8 @@ from distiller.helper.pretrain import init
 
 from distiller.distiller_zoo import DistillKL, HintLoss, Attention, Similarity, Correlation
 from distiller.distiller_zoo import VIDLoss, RKDLoss, PKT, ABLoss, FactorTransfer, KDSVD
-from distiller.distiller_zoo import FSP, NSTLoss, CRDLoss, IFACRDLoss
+from distiller.distiller_zoo import FSP, NSTLoss, CRDLoss, IFACRDLoss, IFACRDv2Loss
+
 
 def main():
     time_start = time.time()
@@ -80,9 +81,41 @@ def main():
         module_list.append(criterion_kd.embed_t)
         trainable_list.append(criterion_kd.embed_s)
         trainable_list.append(criterion_kd.embed_t)
-        if opt.cont_no_l != 1:
-            module_list.append(criterion_kd.rescaler)
-            trainable_list.append(criterion_kd.rescaler)
+        module_list.append(criterion_kd.rescaler)
+        trainable_list.append(criterion_kd.rescaler)
+    elif opt.distill == 'ifacrdv2':
+        raise NotImplementedError
+        opt.s_dim = feat_s[-1].shape[1]
+        opt.t_dim = feat_t[-1].shape[1]
+        criterion_kd = IFACRDv2Loss(opt, model_t)
+        
+        # init stage training
+        #rescaler = Rescaler()
+        init_trainable_list = nn.ModuleList([])
+        #init_trainable_list.append(rescaler)
+        init_trainable_list.append(criterion_kd.embed_t)
+        init(model_s, model_t, init_trainable_list, criterion_kd, train_loader, opt)
+        
+        #connector = Connector(s_shapes, t_shapes)
+        # init stage training
+        #init_trainable_list = nn.ModuleList([])
+        #init_trainable_list.append(connector)
+        #init_trainable_list.append(model_s.get_feat_modules())
+        #criterion_kd = ABLoss(len(feat_s[1:-1]))
+        #init(model_s, model_t, init_trainable_list, criterion_kd, train_loader, opt)
+        # classification
+        #module_list.append(connector)
+        # classification
+        #module_list.append(translator)
+        #module_list.append(paraphraser)
+        #trainable_list.append(translator)
+        
+        #module_list.append(criterion_kd.embed_s)
+        #module_list.append(criterion_kd.embed_t)
+        #trainable_list.append(criterion_kd.embed_s)
+        #trainable_list.append(criterion_kd.embed_t)
+        #module_list.append(criterion_kd.rescaler)
+        #trainable_list.append(criterion_kd.rescaler)
     elif opt.distill == 'attention':
         criterion_kd = Attention()
     elif opt.distill == 'nst':

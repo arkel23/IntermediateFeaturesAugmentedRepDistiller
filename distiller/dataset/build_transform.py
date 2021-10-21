@@ -18,79 +18,61 @@ class ApplyTransform:
        'imagenet': (0.229, 0.224, 0.225)}
     
     def __init__(self, opt, split):
-        if hasattr(opt, 'simclr_aug') and self.split == 'train':
-            self.mode = 'simclr_train'
-        else:
-            self.mode = 'default'
-
         self.mean = self.MEAN[opt.dataset]
         self.std = self.STD[opt.dataset]
         
-        self.transform = self.build_transform(opt, split)
+        self.transform = self.standard_transform(opt, split)
+        if opt.distill in ['ifacrd', 'ifacrdv2'] and opt.simclr_aug and split == 'train':
+            self.transform_agg = self.simclr_transform(opt)
             
     def __call__(self, x):
-        if self.mode == 'simclr_train':
-            return self.transform(x), self.transform(x)
+        if hasattr(self, 'transform_agg'):
+            return self.transform(x), self.transform_agg(x), self.transform_agg(x)
         else:
             return self.transform(x)
 
-    def build_transform(self, opt, split):
-        if self.mode == 'simclr_train':
-            transform = self.simclr_transform(opt, split)
-        else:
-            transform = self.standard_transform(opt, split)
-        return transform
-
     def standard_transform(self, opt, split):
+        t = []
         if split == 'train':
             if opt.dataset in ['cifar10', 'cifar100', 'cinic10', 'svhn']:
-                transform = transforms.Compose([
-                                transforms.RandomCrop(32, padding=4),
-                                transforms.RandomHorizontalFlip(),
-                                transforms.ToTensor(),
-                                transforms.Normalize(self.mean, self.std)
-                            ])
+                t.append(transforms.RandomCrop(32, padding=4))
+                t.append(transforms.RandomHorizontalFlip())
             else:
-                transform = transforms.Compose([
-                    transforms.RandomResizedCrop(opt.image_size),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.ToTensor(),
-                    transforms.Normalize(self.mean, self.std)
-                ])
+                t.append(transforms.RandomResizedCrop(opt.image_size))
+                t.append(transforms.RandomHorizontalFlip())
         else:
-            if opt.dataset in ['cifar10', 'cifar100', 'cinic10', 'svhn']:                
-                transform = transforms.Compose([
-                                transforms.ToTensor(),
-                                transforms.Normalize(self.mean, self.std)
-                            ])
-            elif opt.dataset in ['stl10', 'tinyimagenet']:
-                transform = transforms.Compose([
-                    transforms.Resize(32),
-                    transforms.ToTensor(),
-                    transforms.Normalize(self. mean, self.std)
-                ])
-            else:
-                transform = transforms.Compose([
-                                transforms.Resize(opt.image_size+32),
-                                transforms.CenterCrop(opt.image_size),
-                                transforms.ToTensor(),
-                                transforms.Normalize(self.mean, self.std),
-                            ])
-        return transform
+            if opt.dataset in ['stl10', 'tinyimagenet']:
+                t.append(transforms.Resize(32))
+            elif opt.dataset in ['imagenet']:
+                t.append(transforms.Resize(opt.image_size+32))
+                t.append(transforms.CenterCrop(opt.image_size))
+                            
+        t.append(transforms.ToTensor())
+        t.append(transforms.Normalize(self.mean, self.std))
+        return transforms.Compose(t)
 
     def simclr_transform(self, opt):
-        s = 1
+        p_blur = 0.5 if opt.image_size > 32 else 0 # exclude cifar
+        s = 1 # 0.5 for simsiam, 1 for simclr
         color_jitter = transforms.ColorJitter(0.8 * s, 0.8 * s, 0.8 * s, 0.2 * s)
-        transform = transforms.Compose([
-                transforms.RandomResizedCrop(size=opt.image_size),
+        
+        t = []
+        if opt.image_size == 32:
+            t.append(transforms.RandomCrop(32, padding=4))
+        else:
+            t.append(transforms.RandomResizedCrop(size=opt.image_size))
+
+        transform = [
                 transforms.RandomHorizontalFlip(),  # with 0.5 probability
                 transforms.RandomApply([color_jitter], p=0.8),
                 transforms.RandomGrayscale(p=0.2),
-                transforms.RandomApply([transforms.GaussianBlur(kernel_size=opt.image_size//20*2+1, sigma=(0.1, 2.0))], p=0.5),
+                transforms.RandomApply([
+                    transforms.GaussianBlur(kernel_size=opt.image_size//20*2+1, sigma=(0.1, 2.0))], p=p_blur),
                 # We blur the image 50% of the time using a Gaussian kernel. We randomly sample σ ∈ [0.1, 2.0], and the kernel size is set to be 10% of the image height/width.
                 transforms.ToTensor(),
-                transforms.Normalize(mean=self.mean,
-                                    std=self.std)
-            ])
+                transforms.Normalize(mean=self.mean, std=self.std)
+            ]
+
+        [t.append(tr) for tr in transform]      
             
-        return transform
+        return transforms.Compose(t)

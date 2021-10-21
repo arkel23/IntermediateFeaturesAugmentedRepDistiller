@@ -13,3 +13,4 @@ from .SP import Similarity
 from .VID import VIDLoss
 from .CRD import CRDLoss
 from .IFACRD import IFACRDLoss
+from .IFACRDv2 import IFACRDv2Loss

@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class IFACRDLoss(nn.Module):
+
+class IFACRDv2Loss(nn.Module):
     """IFACRD Loss function
     
     Args:
@@ -22,7 +23,7 @@ class IFACRDLoss(nn.Module):
         opt.feat_dim: the dimension of the projection space
     """
     def __init__(self, opt, model_t):
-        super(IFACRDLoss, self).__init__()
+        super(IFACRDv2Loss, self).__init__()
         
         self.cont_t = opt.cont_t
     
@@ -48,39 +49,10 @@ class IFACRDLoss(nn.Module):
         """
         f_s = self.embed_s(f_s)
         
-        if self.cont_t in [0, 1, 2]:
-            f_t = f_t[-self.cont_no_l:]
-            f_t = self.rescaler(f_t)
-            f_t = [self.embed_t(feat) for feat in f_t]
-        elif self.cont_t == 3:
-            f_t_1, f_t_2 = f_t
-            
-            f_t_1 = f_t_1[-self.cont_no_l:]
-            f_t_1 = self.rescaler(f_t_1)
-            f_t_1 = [self.embed_t(feat) for feat in f_t_1]
-            
-            f_t_2 = f_t_2[-self.cont_no_l:]
-            f_t_2 = self.rescaler(f_t_2)
-            f_t_2 = [self.embed_t(feat) for feat in f_t_2]
-            
-            f_t = f_t_1 + f_t_2
-        elif self.cont_t == 4:
-            f_t_0, f_t_1, f_t_2 = f_t
-            
-            f_t_0 = f_t_0[-self.cont_no_l:]
-            f_t_0 = self.rescaler(f_t_0)
-            f_t_0 = [self.embed_t(feat) for feat in f_t_0]
-            
-            f_t_1 = f_t_1[-self.cont_no_l:]
-            f_t_1 = self.rescaler(f_t_1)
-            f_t_1 = [self.embed_t(feat) for feat in f_t_1]
-            
-            f_t_2 = f_t_2[-self.cont_no_l:]
-            f_t_2 = self.rescaler(f_t_2)
-            f_t_2 = [self.embed_t(feat) for feat in f_t_2]
-            
-            f_t = f_t_0 + f_t_1 + f_t_2
-       
+        f_t = f_t[-self.cont_no_l:]
+        f_t = self.rescaler(f_t)
+        f_t = [self.embed_t(feat) for feat in f_t]
+        
         z = torch.cat([f_s.unsqueeze(1), torch.stack(f_t, dim=1)], dim=1)     
         loss = self.criterion(F.normalize(z, dim=2))
         return loss 

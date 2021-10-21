@@ -11,6 +11,7 @@ from .misc_utils import AverageMeter
 from .dist_utils import reduce_tensor
 from .optim_utils import return_optimizer_scheduler
 
+
 def init(model_s, model_t, init_modules, criterion, train_loader, opt):
     # create a copy of args since lr is changed only in this module
     opt = copy.deepcopy(opt)
@@ -52,6 +53,8 @@ def init(model_s, model_t, init_modules, criterion, train_loader, opt):
         for idx, data in enumerate(train_loader):
             if opt.distill in ['crd']:
                 input, target, index, contrast_idx = data
+            elif opt.distill in ['ifa0crdv2'] and opt.simclr_aug:
+                (input, input_aug1, input_aug2), target, index = data
             else:
                 input, target, index = data
             data_time.update(time.time() - end)
@@ -63,6 +66,9 @@ def init(model_s, model_t, init_modules, criterion, train_loader, opt):
                 index = index.cuda()
                 if opt.distill in ['crd']:
                     contrast_idx = contrast_idx.cuda()
+                if opt.distill in ['ifacrdv2'] and opt.simclr_aug:
+                    input_aug1 = input_aug1.cuda()
+                    input_aug2 = input_aug2.cuda()
 
             # ============= forward ==============
             out_s = model_s(input, classify_only=False)

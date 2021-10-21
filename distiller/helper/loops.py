@@ -10,6 +10,7 @@ import numpy as np
 from .misc_utils import AverageMeter, accuracy
 from .dist_utils import reduce_tensor, distribute_bn
 
+
 def train_vanilla(epoch, train_loader, model, criterion, optimizer, opt):
     """vanilla training"""
     model.train()
@@ -111,6 +112,8 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
     for idx, data in enumerate(train_loader):
         if opt.distill in ['crd']:
             input, target, index, contrast_idx = data
+        elif opt.distill in ['ifacrd'] and opt.simclr_aug:
+            (input, input_aug1, input_aug2), target, index = data
         else:
             input, target, index = data
         data_time.update(time.time() - end)
@@ -122,11 +125,21 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             index = index.cuda()
             if opt.distill in ['crd']:
                 contrast_idx = contrast_idx.cuda()
+            elif opt.distill in ['ifacrd'] and opt.simclr_aug:
+                input_aug1 = input_aug1.cuda()
+                input_aug2 = input_aug2.cuda()
 
         # ===================forward=====================
         out_s = model_s(input, classify_only=False)
         feat_s = out_s[:-1]
         logit_s = out_s[-1]
+        if opt.distill in ['ifacrd'] and opt.simclr_aug:
+            if opt.cont_s == 1:
+                out_s_aug1 = model_s(input_aug1)
+                feat_s_aug1 = out_s_aug1[:-1]
+            elif opt.cont_s == 2:
+                out_s_aug2 = model_s(input_aug2)
+                feat_s_aug2 = out_s_aug2[:-1]
         
         with torch.no_grad():
             out_t = model_t(input, classify_only=False)
@@ -135,6 +148,19 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             if opt.distill != 'ifacrd':
                 feat_t = [f.detach() for f in feat_t]
             
+            if opt.distill in ['ifacrd'] and opt.simclr_aug:
+                if opt.cont_t in [3, 4]:
+                    out_t_aug1 = model_t(input_aug1, classify_only=False)
+                    feat_t_aug1 = out_t_aug1[:-1]
+                    out_t_aug2 = model_t(input_aug2, classify_only=False)
+                    feat_t_aug2 = out_t_aug2[:-1]
+                elif opt.cont_t == 1:
+                    out_t_aug1 = model_t(input_aug1, classify_only=False)
+                    feat_t_aug1 = out_t_aug1[:-1]                         
+                elif opt.cont_t == 2:
+                    out_t_aug2 = model_t(input_aug2, classify_only=False)
+                    feat_t_aug2 = out_t_aug2[:-1]
+                    
         # cls + kl div
         loss_cls = criterion_cls(logit_s, target)
         loss_div = criterion_div(logit_s, logit_t)
@@ -151,8 +177,29 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             f_t = feat_t[-1]
             loss_kd = criterion_kd(f_s, f_t, index, contrast_idx)
         elif opt.distill == 'ifacrd':
-            f_s = feat_s[-1]
-            loss_kd = criterion_kd(f_s, feat_t)
+            if opt.simclr_aug:
+                if opt.cont_s == 0:
+                    f_s = feat_s[-1]
+                elif opt.cont_s == 1:
+                    f_s = feat_s_aug1[-1]
+                elif opt.cont_s == 2:
+                    f_s = feat_s_aug2[-1]
+
+                if opt.cont_t == 4:
+                    f_t = [feat_t, feat_t_aug1, feat_t_aug2]
+                elif opt.cont_t == 3:
+                    f_t = [feat_t_aug1, feat_t_aug2]
+                elif opt.cont_t == 0:
+                    f_t = feat_t
+                elif opt.cont_t == 1:
+                    f_t = feat_t_aug1
+                elif opt.cont_t == 2:
+                    f_t = feat_t_aug2
+            else:
+                f_s = feat_s[-1]
+                f_t = feat_t
+            
+            loss_kd = criterion_kd(f_s, f_t)
         elif opt.distill == 'attention':
             g_s = feat_s[1:-1]
             g_t = feat_t[1:-1]
