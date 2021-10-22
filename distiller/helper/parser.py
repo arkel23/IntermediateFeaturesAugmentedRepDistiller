@@ -43,8 +43,13 @@ def parse_common():
 
 def add_adjust_common_dependent(opt):
     
+    if opt.simclr_aug == False:
+        opt.cont_s = 0
+        opt.cont_t = 0
     if opt.distill == 'ifacrdv2':
         opt.simclr_aug = True
+    else:
+        opt.sskd = False
     
     if opt.dataset == 'imagenet':
         opt.image_size = 224
@@ -159,7 +164,7 @@ def parse_option_student():
     parser.add_argument('--nce_t', default=0.07, type=float, help='temperature parameter for softmax')
     parser.add_argument('--nce_m', default=0.5, type=float, help='momentum for non-parametric updates')
     
-    # IFACRD distillation
+    # IFACRD(v2) distillation
     parser.add_argument('--layers', type=str, default='last', choices=['all', 'blocks', 'last'], 
                         help='features from last layers or blocks ends')
     parser.add_argument('--cont_no_l', default=2, type=int, 
@@ -170,6 +175,7 @@ def parse_option_student():
     parser.add_argument('--rs_hid_dim', default=128, type=int, 
                         help='dimension of rescaler mlp hidden layer space')
     parser.add_argument('--rs_ln', action='store_true', help='Use rescaler mlp with LN instead of BN')
+    parser.add_argument('--rs_detach', action='store_false', help='Detach features before passing through rescaler (default: True)')
     
     parser.add_argument('--proj_no_l', default=1, choices=[1, 2, 3], type=int, 
                         help='no of layers for projector mlp')
@@ -178,7 +184,8 @@ def parse_option_student():
     parser.add_argument('--proj_ln', action='store_true', help='Use projector mlp with LN instead of BN')
     
     parser.add_argument('--simclr_aug', action='store_true', help='Use simclr augs')
-    parser.add_argument('--cont_s', type=int, default=0, choices=[0, 1, 2])
+    parser.add_argument('--sskd', action='store_true', help='KL div on ss module')
+    parser.add_argument('--cont_s', type=int, default=0, choices=[0, 1, 2, 3, 4])
     parser.add_argument('--cont_t', type=int, default=0, choices=[0, 1, 2, 3, 4], 
         help='0 uses no aug, 1 uses aug1, 2 uses aug2, 3 uses aug1 and 2, 4 uses no aug, aug1 and aug2')
     
@@ -202,9 +209,17 @@ def parse_option_student():
         opt.cont_no_l = 0
 
     if opt.distill == 'ifacrd':
-        opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_contl{}{}_rsl{}hd{}ln{}_pjl{}out{}hd{}ln{}_{}'.format(
+        opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_contl{}{}_aug{}s{}t{}_rsl{}hd{}ln{}detach_pjl{}out{}hd{}ln{}_{}'.format(
             opt.model_s, opt.model_t, opt.dataset, opt.distill, opt.gamma, opt.alpha, opt.beta, opt.batch_size, 
-            opt.base_lr, opt.weight_decay, opt.nce_t, opt.cont_no_l, opt.layers, opt.rs_no_l, opt.rs_hid_dim, opt.rs_ln, 
+            opt.base_lr, opt.weight_decay, opt.nce_t, opt.cont_no_l, opt.layers, 
+            opt.simclr_aug, opt.cont_s, opt.cont_t,
+            opt.rs_no_l, opt.rs_hid_dim, opt.rs_ln, opt.rs_detach,
+            opt.proj_no_l, opt.feat_dim, opt.proj_hid_dim, opt.proj_ln, opt.trial)
+    elif opt.distill == 'ifacrdv2':
+        opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_contl{}{}_sskd{}_rsl{}hd{}ln{}detach_pjl{}out{}hd{}ln{}_{}'.format(
+            opt.model_s, opt.model_t, opt.dataset, opt.distill, opt.gamma, opt.alpha, opt.beta, opt.batch_size, 
+            opt.base_lr, opt.weight_decay, opt.nce_t, opt.cont_no_l, opt.layers, 
+            opt.sskd, opt.rs_no_l, opt.rs_hid_dim, opt.rs_ln, opt.rs_detach,
             opt.proj_no_l, opt.feat_dim, opt.proj_hid_dim, opt.proj_ln, opt.trial)
     else:
         opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_{}'.format(

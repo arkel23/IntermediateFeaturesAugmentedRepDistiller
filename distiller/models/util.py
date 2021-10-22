@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import torch
 import torch.nn as nn
 import math
 
@@ -12,6 +13,111 @@ class LinearClassifier(nn.Module):
     def forward(self, x):
         return self.classifier(x)
     
+
+class Rescaler(nn.Module):
+    def __init__(self, opt, model):
+        super().__init__()
+        
+        self.detach = opt.rs_detach
+        
+        original_dimensions = self.get_reduction_dims(model, opt.image_size, opt.cont_no_l)
+        final_dim = original_dimensions[-1]
+        
+        if opt.model_t not in []: # placeholder in case includes vits        
+            self.rescaling_head = nn.ModuleList([
+                MLP(
+                    layer_norm=opt.rs_ln, no_layers=opt.rs_no_l, hidden_size=opt.rs_hid_dim, 
+                    in_features=original_dim, out_features=final_dim)
+                for original_dim in original_dimensions])
+        else:
+            self.rescaling_head = nn.ModuleList([
+                nn.Identity() for _ in original_dimensions])
+            
+    def get_reduction_dims(self, model, image_size, no_layers):
+        img = torch.rand(2, 3, image_size, image_size)
+        out = model(img, classify_only=False)
+        dims = [layer_output.size(1) for layer_output in out[:-1]]
+        return dims[-no_layers:]
+    
+    def forward(self, x):
+        if self.detach:
+            return [self.rescaling_head[i](features.detach()) for i, features in enumerate(x)]
+        else:
+            return [self.rescaling_head[i](features) for i, features in enumerate(x)]
+            
+
+class MLP(nn.Module):
+    def __init__(self, linear: bool = False, layer_norm: bool = False, 
+                 no_layers: int = 3, in_features: int = None, 
+                 out_features: int = None, hidden_size: int = None, 
+                 layer_norm_eps: float = 1e-12, dropout_prob: float = 0.1):
+        super().__init__()
+        
+        self.no_layers = no_layers
+
+        if no_layers != 1 and not hidden_size:
+            hidden_size = out_features
+        
+        if linear:
+            self.no_layers = 1
+            self.projector = nn.Sequential(
+                nn.Linear(in_features, out_features, bias=True)
+            )
+        else:
+            if not layer_norm:
+                if no_layers == 1:
+                    self.projector = nn.Sequential(
+                        nn.Linear(in_features, out_features, bias=True),
+                        nn.BatchNorm1d(out_features)
+                    )
+                elif no_layers == 2:
+                    self.projector = nn.Sequential(
+                        nn.Linear(in_features, hidden_size),
+                        nn.BatchNorm1d(hidden_size),
+                        nn.ReLU(inplace=True),
+                        nn.Linear(hidden_size, out_features),
+                        nn.BatchNorm1d(out_features)
+                    )
+                else:
+                    self.projector = nn.Sequential(
+                        nn.Linear(in_features, hidden_size),
+                        nn.BatchNorm1d(hidden_size),
+                        nn.ReLU(inplace=True),
+                        nn.Linear(hidden_size, hidden_size),
+                        nn.BatchNorm1d(hidden_size),
+                        nn.ReLU(inplace=True),
+                        nn.Linear(hidden_size, out_features),
+                        nn.BatchNorm1d(out_features)
+                    )
+            else:
+                if no_layers == 1:
+                    self.projector = nn.Sequential(
+                        nn.Linear(in_features, out_features, bias=True),
+                        nn.LayerNorm(out_features, eps=layer_norm_eps)
+                    )
+                elif no_layers == 2:
+                    self.projector = nn.Sequential(
+                        nn.Linear(in_features, hidden_size),
+                        nn.LayerNorm(hidden_size, eps=layer_norm_eps),
+                        nn.GELU(),
+                        nn.Linear(hidden_size, out_features),
+                        nn.LayerNorm(out_features, eps=layer_norm_eps)
+                    )
+                else:
+                    self.projector = nn.Sequential(
+                        nn.Linear(in_features, hidden_size),
+                        nn.LayerNorm(hidden_size, eps=layer_norm_eps),
+                        nn.GELU(),
+                        nn.Linear(hidden_size, hidden_size),
+                        nn.LayerNorm(hidden_size, eps=layer_norm_eps),
+                        nn.GELU(),
+                        nn.Linear(hidden_size, out_features),
+                        nn.LayerNorm(out_features, eps=layer_norm_eps)
+                    )
+                
+    def forward(self, x):
+        return self.projector(x)
+
 
 class Paraphraser(nn.Module):
     """Paraphrasing Complex Network: Network Compression via Factor Transfer"""

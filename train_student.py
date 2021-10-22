@@ -6,7 +6,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 from distiller.models import model_extractor, Embed, ConvReg, LinearEmbed
-from distiller.models import Connector, Translator, Paraphraser
+from distiller.models import Connector, Translator, Paraphraser, Rescaler, MLP
 
 from distiller.dataset.loaders import build_dataloaders
 
@@ -77,45 +77,41 @@ def main():
         opt.s_dim = feat_s[-1].shape[1]
         opt.t_dim = feat_t[-1].shape[1]
         criterion_kd = IFACRDLoss(opt, model_t)
-        module_list.append(criterion_kd.embed_s)
-        module_list.append(criterion_kd.embed_t)
-        trainable_list.append(criterion_kd.embed_s)
-        trainable_list.append(criterion_kd.embed_t)
+        module_list.append(criterion_kd.proj_s)
+        module_list.append(criterion_kd.proj_t)
         module_list.append(criterion_kd.rescaler)
+        trainable_list.append(criterion_kd.proj_s)
+        trainable_list.append(criterion_kd.proj_t)
         trainable_list.append(criterion_kd.rescaler)
     elif opt.distill == 'ifacrdv2':
-        raise NotImplementedError
         opt.s_dim = feat_s[-1].shape[1]
         opt.t_dim = feat_t[-1].shape[1]
-        criterion_kd = IFACRDv2Loss(opt, model_t)
-        
-        # init stage training
-        #rescaler = Rescaler()
-        init_trainable_list = nn.ModuleList([])
-        #init_trainable_list.append(rescaler)
-        init_trainable_list.append(criterion_kd.embed_t)
-        init(model_s, model_t, init_trainable_list, criterion_kd, train_loader, opt)
-        
-        #connector = Connector(s_shapes, t_shapes)
-        # init stage training
-        #init_trainable_list = nn.ModuleList([])
-        #init_trainable_list.append(connector)
-        #init_trainable_list.append(model_s.get_feat_modules())
-        #criterion_kd = ABLoss(len(feat_s[1:-1]))
-        #init(model_s, model_t, init_trainable_list, criterion_kd, train_loader, opt)
-        # classification
-        #module_list.append(connector)
-        # classification
-        #module_list.append(translator)
-        #module_list.append(paraphraser)
-        #trainable_list.append(translator)
-        
-        #module_list.append(criterion_kd.embed_s)
-        #module_list.append(criterion_kd.embed_t)
-        #trainable_list.append(criterion_kd.embed_s)
-        #trainable_list.append(criterion_kd.embed_t)
-        #module_list.append(criterion_kd.rescaler)
-        #trainable_list.append(criterion_kd.rescaler)
+        if opt.sskd:
+            criterion_init = IFACRDv2Loss(opt)
+            criterion_kd = IFACRDv2Loss(opt, return_logits=True)
+            # init stage training
+            rescaler_t = Rescaler(opt, model_t)
+            proj_t = MLP(
+                layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
+                in_features=opt.t_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim
+            )
+            init_trainable_list = nn.ModuleList([])
+            init_trainable_list.append(rescaler_t)
+            init_trainable_list.append(proj_t)
+            init(model_s, model_t, init_trainable_list, criterion_init, train_loader, opt)
+            # classification
+            module_list.append(rescaler_t)
+            module_list.append(proj_t)
+        else:
+            criterion_kd = IFACRDv2Loss(opt)
+        rescaler_s = Rescaler(opt, model_s)
+        proj_s = MLP(
+            layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
+            in_features=opt.s_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
+        module_list.append(rescaler_s)
+        module_list.append(proj_s)
+        trainable_list.append(rescaler_s)
+        trainable_list.append(proj_s)
     elif opt.distill == 'attention':
         criterion_kd = Attention()
     elif opt.distill == 'nst':

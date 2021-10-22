@@ -3,6 +3,7 @@ import math
 from timm.scheduler import create_scheduler
 from timm.optim import create_optimizer
 
+
 class Scheduler():
     def __init__(self, opt, optimizer):
         self.opt = opt

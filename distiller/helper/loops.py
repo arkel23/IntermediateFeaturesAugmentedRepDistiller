@@ -91,6 +91,10 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
         module_list[1].eval()
     elif opt.distill == 'factor':
         module_list[2].eval()
+    elif opt.distill == 'ifacrdv2':
+        if opt.sskd:
+            module_list[1].eval()
+            module_list[2].eval()
 
     criterion_cls = criterion_list[0]
     criterion_div = criterion_list[1]
@@ -112,8 +116,29 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
     for idx, data in enumerate(train_loader):
         if opt.distill in ['crd']:
             input, target, index, contrast_idx = data
-        elif opt.distill in ['ifacrd'] and opt.simclr_aug:
+        elif opt.distill == 'ifacrdv2' or (
+            opt.simclr_aug and opt.distill == 'ifacrd'
+        ):
             (input, input_aug1, input_aug2), target, index = data
+            bs = input.size(0)
+            if opt.cont_s in [3, 4] or opt.distill == 'ifacrdv2':
+                input_s = torch.cat([input, input_aug1, input_aug2], dim=0)
+            elif opt.cont_s == 1:
+                input_s = torch.cat([input, input_aug1], dim=0)
+            elif opt.cont_s == 2:
+                input_s = torch.cat([input, input_aug2], dim=0)
+            else:
+                input_s = input
+                
+            if opt.cont_t in [3, 4] or (opt.distill == 'ifacrdv2' and opt.sskd):
+                input_t = torch.cat([input, input_aug1, input_aug2], dim=0)
+            elif opt.cont_t == 1:
+                input_t = torch.cat([input, input_aug1], dim=0)
+            elif opt.cont_t == 2:
+                input_t = torch.cat([input, input_aug2], dim=0)
+            else:
+                input_t = input
+            
         else:
             input, target, index = data
         data_time.update(time.time() - end)
@@ -125,31 +150,74 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             index = index.cuda()
             if opt.distill in ['crd']:
                 contrast_idx = contrast_idx.cuda()
-            elif opt.distill in ['ifacrd'] and opt.simclr_aug:
-                input_aug1 = input_aug1.cuda()
-                input_aug2 = input_aug2.cuda()
-
+            elif opt.distill == 'ifacrdv2' or (
+                opt.simclr_aug and opt.distill == 'ifacrd' and (
+                    opt.cont_s != 0 or opt.cont_t != 0
+                )    
+            ):
+                #input_aug1 = input_aug1.cuda()
+                #input_aug2 = input_aug2.cuda()
+                input_s = input_s.cuda()
+                input_t = input_t.cuda()
+        
         # ===================forward=====================
-        out_s = model_s(input, classify_only=False)
-        feat_s = out_s[:-1]
-        logit_s = out_s[-1]
-        if opt.distill in ['ifacrd'] and opt.simclr_aug:
-            if opt.cont_s == 1:
-                out_s_aug1 = model_s(input_aug1)
+        if opt.distill == 'ifacrdv2' or (
+            opt.simclr_aug and opt.distill == 'ifacrd' and opt.cont_s != 0    
+        ):
+            out_s = model_s(input_s, classify_only=False)
+            feat_s = out_s[:-1]
+            logit_s = out_s[-1]
+            if opt.cont_s in [3, 4] or opt.distill == 'ifacrdv2':
+                feat_s = [torch.split(t, [bs, bs, bs], dim=0) for t in feat_s]
+                feat_s, feat_s_aug1, feat_s_aug2 = zip(*feat_s)
+                logit_s, _, _ = torch.split(logit_s, [bs, bs, bs], dim=0)
+            else:
+                feat_s = [torch.split(t, [bs, bs], dim=0) for t in feat_s]
+                feat_s, feat_s_aug = zip(*feat_s)
+                logit_s, _ = torch.split(logit_s, [bs, bs], dim=0)
+        else:
+            out_s = model_s(input, classify_only=False)
+            feat_s = out_s[:-1]
+            logit_s = out_s[-1]
+        '''
+        if opt.distill in ['ifacrd', 'ifacrdv2'] and opt.simclr_aug:
+            if opt.distill == 'ifacrdv2':
+                out_s_aug1 = model_s(input_aug1, classify_only=False)
+                feat_s_aug1 = out_s_aug1[:-1]
+                out_s_aug2 = model_s(input_aug2, classify_only=False)
+                feat_s_aug2 = out_s_aug2[:-1]
+            elif opt.cont_s == 1:
+                out_s_aug1 = model_s(input_aug1, classify_only=False)
                 feat_s_aug1 = out_s_aug1[:-1]
             elif opt.cont_s == 2:
-                out_s_aug2 = model_s(input_aug2)
+                out_s_aug2 = model_s(input_aug2, classify_only=False)
                 feat_s_aug2 = out_s_aug2[:-1]
-        
+        '''
         with torch.no_grad():
-            out_t = model_t(input, classify_only=False)
-            feat_t = out_t[:-1]
-            logit_t = out_t[-1]
-            if opt.distill != 'ifacrd':
-                feat_t = [f.detach() for f in feat_t]
-            
-            if opt.distill in ['ifacrd'] and opt.simclr_aug:
-                if opt.cont_t in [3, 4]:
+            if (opt.distill == 'ifacrdv2' and opt.sskd) or (
+                opt.simclr_aug and opt.distill == 'ifacrd' and opt.cont_t != 0    
+            ):
+                out_t = model_t(input_t, classify_only=False)
+                feat_t = out_t[:-1]
+                logit_t = out_t[-1]
+                if opt.distill == 'ifacrdv2' or opt.cont_t in [3, 4]:
+                    feat_t = [torch.split(t, [bs, bs, bs], dim=0) for t in feat_t]
+                    feat_t, feat_t_aug1, feat_t_aug2 = zip(*feat_t)
+                    logit_t, _, _ = torch.split(logit_t, [bs, bs, bs], dim=0)
+                else:
+                    feat_t = [torch.split(t, [bs, bs], dim=0) for t in feat_t]
+                    feat_t, feat_t_aug = zip(*feat_t)
+                    logit_t, _ = torch.split(logit_t, [bs, bs], dim=0)
+            else:
+                out_t = model_t(input, classify_only=False)
+                feat_t = out_t[:-1]
+                logit_t = out_t[-1]
+                if opt.distill not in ['ifacrd', 'ifacrdv2']:
+                    feat_t = [f.detach() for f in feat_t]
+            '''            
+            if opt.distill in ['ifacrd', 'ifacrdv2'] and opt.simclr_aug:
+                if opt.cont_t in [3, 4] or \
+                    (opt.distill == 'ifacrdv2' and opt.sskd):
                     out_t_aug1 = model_t(input_aug1, classify_only=False)
                     feat_t_aug1 = out_t_aug1[:-1]
                     out_t_aug2 = model_t(input_aug2, classify_only=False)
@@ -160,7 +228,7 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
                 elif opt.cont_t == 2:
                     out_t_aug2 = model_t(input_aug2, classify_only=False)
                     feat_t_aug2 = out_t_aug2[:-1]
-                    
+            '''    
         # cls + kl div
         loss_cls = criterion_cls(logit_s, target)
         loss_div = criterion_div(logit_s, logit_t)
@@ -178,28 +246,37 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             loss_kd = criterion_kd(f_s, f_t, index, contrast_idx)
         elif opt.distill == 'ifacrd':
             if opt.simclr_aug:
-                if opt.cont_s == 0:
+                if opt.cont_s == 4:
+                    f_s = [feat_s[-1], feat_s_aug1[-1], feat_s_aug2[-1]]
+                elif opt.cont_s == 3:
+                    f_s = [feat_s_aug1[-1], feat_s_aug2[-1]]
+                elif opt.cont_s == 0:
                     f_s = feat_s[-1]
-                elif opt.cont_s == 1:
-                    f_s = feat_s_aug1[-1]
-                elif opt.cont_s == 2:
-                    f_s = feat_s_aug2[-1]
-
+                else:
+                    f_s = feat_s_aug[-1]
+                
                 if opt.cont_t == 4:
                     f_t = [feat_t, feat_t_aug1, feat_t_aug2]
                 elif opt.cont_t == 3:
                     f_t = [feat_t_aug1, feat_t_aug2]
                 elif opt.cont_t == 0:
                     f_t = feat_t
-                elif opt.cont_t == 1:
-                    f_t = feat_t_aug1
-                elif opt.cont_t == 2:
-                    f_t = feat_t_aug2
+                else:
+                    f_t = feat_t_aug
             else:
                 f_s = feat_s[-1]
-                f_t = feat_t
-            
+                f_t = feat_t            
             loss_kd = criterion_kd(f_s, f_t)
+        elif opt.distill == 'ifacrdv2':
+            if opt.sskd:
+                logits_ss_t = criterion_kd(
+                    feat_t_aug1, feat_t_aug2, module_list[1], module_list[2])
+                logits_ss_s = criterion_kd(
+                    feat_s_aug1, feat_s_aug2, module_list[3], module_list[4])
+                loss_kd = criterion_div(logits_ss_t, logits_ss_s)
+            else:
+                loss_kd = criterion_kd(
+                    feat_s_aug1, feat_s_aug2, module_list[1], module_list[2])
         elif opt.distill == 'attention':
             g_s = feat_s[1:-1]
             g_t = feat_t[1:-1]

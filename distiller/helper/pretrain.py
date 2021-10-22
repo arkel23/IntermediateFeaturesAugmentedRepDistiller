@@ -53,8 +53,10 @@ def init(model_s, model_t, init_modules, criterion, train_loader, opt):
         for idx, data in enumerate(train_loader):
             if opt.distill in ['crd']:
                 input, target, index, contrast_idx = data
-            elif opt.distill in ['ifa0crdv2'] and opt.simclr_aug:
+            elif opt.distill in ['ifacrdv2']:
                 (input, input_aug1, input_aug2), target, index = data
+                bs = input.size(0)
+                input = torch.cat([input_aug1, input_aug2], dim=0)
             else:
                 input, target, index = data
             data_time.update(time.time() - end)
@@ -66,21 +68,26 @@ def init(model_s, model_t, init_modules, criterion, train_loader, opt):
                 index = index.cuda()
                 if opt.distill in ['crd']:
                     contrast_idx = contrast_idx.cuda()
-                if opt.distill in ['ifacrdv2'] and opt.simclr_aug:
-                    input_aug1 = input_aug1.cuda()
-                    input_aug2 = input_aug2.cuda()
 
             # ============= forward ==============
-            out_s = model_s(input, classify_only=False)
-            feat_s = out_s[:-1]
+            if opt.distill == 'ifacrdv2':
+                pass
+            else:
+                out_s = model_s(input, classify_only=False)
+                feat_s = out_s[:-1]
             
             with torch.no_grad():
-                out_t = model_t(input, classify_only=False)
-                feat_t = out_t[:-1]
-                if opt.distill != 'ifacrd':
-                    feat_t = [f.detach() for f in feat_t]
-        
-
+                if opt.distill == 'ifacrdv2':
+                    out_t = model_t(input, classify_only=False)
+                    feat_t = out_t[:-1]
+                    feat_t = [torch.split(t, [bs, bs], dim=0) for t in feat_t]
+                    feat_t_aug1, feat_t_aug2 = zip(*feat_t)
+                else:
+                    out_t = model_t(input, classify_only=False)
+                    feat_t = out_t[:-1]
+                    if opt.distill != 'ifacrd':
+                        feat_t = [f.detach() for f in feat_t]
+                
             if opt.distill == 'abound':
                 g_s = init_modules[0](feat_s[1:-1])
                 g_t = feat_t[1:-1]
@@ -93,6 +100,9 @@ def init(model_s, model_t, init_modules, criterion, train_loader, opt):
             elif opt.distill == 'fsp':
                 loss_group = criterion(feat_s[:-1], feat_t[:-1])
                 loss = sum(loss_group)
+            elif opt.distill == 'ifacrdv2':
+                loss = criterion(
+                    feat_t_aug1, feat_t_aug2, init_modules[0], init_modules[1])
             else:
                 raise NotImplemented('Not supported in init training: {}'.format(opt.distill))
 

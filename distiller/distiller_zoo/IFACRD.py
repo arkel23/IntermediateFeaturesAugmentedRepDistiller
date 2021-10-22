@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from distiller.models.util import MLP, Rescaler
+
+
 class IFACRDLoss(nn.Module):
     """IFACRD Loss function
     
@@ -24,17 +27,18 @@ class IFACRDLoss(nn.Module):
     def __init__(self, opt, model_t):
         super(IFACRDLoss, self).__init__()
         
+        self.cont_s = opt.cont_s
         self.cont_t = opt.cont_t
+        self.cont_no_l = opt.cont_no_l
     
-        self.embed_s  = ProjectionMLPHead(
+        self.proj_s  = MLP(
             layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
             in_features=opt.s_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
-        self.embed_t  = ProjectionMLPHead(
+        self.proj_t  = MLP(
             layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
             in_features=opt.t_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
         
-        self.rescaler = MultiScaleToSingleScaleHead(opt, model_t)
-        self.cont_no_l = opt.cont_no_l
+        self.rescaler = Rescaler(opt, model_t)
         
         self.criterion = SupConLoss(temperature=opt.nce_t, base_temperature=opt.nce_t, contrast_mode='all')
        
@@ -46,155 +50,65 @@ class IFACRDLoss(nn.Module):
         Returns:
             The contrastive loss
         """
-        f_s = self.embed_s(f_s)
+        if self.cont_s in [0, 1, 2]:
+            f_s = self.proj_s(f_s)
+        elif self.cont_s == 3:
+            f_s_1, f_s_2 = f_s
+            f_s_1 = self.proj_s(f_s_1)
+            f_s_2 = self.proj_s(f_s_2)
+            f_s = torch.stack([f_s_1, f_s_2], dim=1)
+        elif self.cont_s == 4:
+            f_s_0, f_s_1, f_s_2 = f_s 
+            f_s_0 = self.proj_s(f_s_0)   
+            f_s_1 = self.proj_s(f_s_1)
+            f_s_2 = self.proj_s(f_s_2)
+            f_s = torch.stack([f_s_0, f_s_1, f_s_2], dim=1)
         
         if self.cont_t in [0, 1, 2]:
             f_t = f_t[-self.cont_no_l:]
             f_t = self.rescaler(f_t)
-            f_t = [self.embed_t(feat) for feat in f_t]
+            f_t = [self.proj_t(feat) for feat in f_t]
         elif self.cont_t == 3:
             f_t_1, f_t_2 = f_t
-            
             f_t_1 = f_t_1[-self.cont_no_l:]
             f_t_1 = self.rescaler(f_t_1)
-            f_t_1 = [self.embed_t(feat) for feat in f_t_1]
-            
+            f_t_1 = [self.proj_t(feat) for feat in f_t_1]
             f_t_2 = f_t_2[-self.cont_no_l:]
             f_t_2 = self.rescaler(f_t_2)
-            f_t_2 = [self.embed_t(feat) for feat in f_t_2]
-            
+            f_t_2 = [self.proj_t(feat) for feat in f_t_2]
             f_t = f_t_1 + f_t_2
         elif self.cont_t == 4:
             f_t_0, f_t_1, f_t_2 = f_t
-            
             f_t_0 = f_t_0[-self.cont_no_l:]
             f_t_0 = self.rescaler(f_t_0)
-            f_t_0 = [self.embed_t(feat) for feat in f_t_0]
-            
+            f_t_0 = [self.proj_t(feat) for feat in f_t_0] 
             f_t_1 = f_t_1[-self.cont_no_l:]
             f_t_1 = self.rescaler(f_t_1)
-            f_t_1 = [self.embed_t(feat) for feat in f_t_1]
-            
+            f_t_1 = [self.proj_t(feat) for feat in f_t_1]
             f_t_2 = f_t_2[-self.cont_no_l:]
             f_t_2 = self.rescaler(f_t_2)
-            f_t_2 = [self.embed_t(feat) for feat in f_t_2]
-            
+            f_t_2 = [self.proj_t(feat) for feat in f_t_2]
             f_t = f_t_0 + f_t_1 + f_t_2
        
-        z = torch.cat([f_s.unsqueeze(1), torch.stack(f_t, dim=1)], dim=1)     
+        if self.cont_s in [0, 1, 2]:
+            z = torch.cat([f_s.unsqueeze(1), torch.stack(f_t, dim=1)], dim=1)     
+        else:
+            z = torch.cat([f_s, torch.stack(f_t, dim=1)], dim=1)
         loss = self.criterion(F.normalize(z, dim=2))
         return loss 
 
 
-class MultiScaleToSingleScaleHead(nn.Module):
-    def __init__(self, opt, model):
-        super().__init__()
-        
-        original_dimensions = self.get_reduction_dims(model, opt.image_size, opt.cont_no_l)
-        final_dim = original_dimensions[-1]
-        
-        if opt.model_t not in []: # placeholder in case includes vits        
-            self.rescaling_head = nn.ModuleList([
-                ProjectionMLPHead(
-                    layer_norm=opt.rs_ln, no_layers=opt.rs_no_l, hidden_size=opt.rs_hid_dim, 
-                    in_features=original_dim, out_features=final_dim)
-                for original_dim in original_dimensions])
-        else:
-            self.rescaling_head = nn.ModuleList([
-                nn.Identity() for _ in original_dimensions])
-            
-    def get_reduction_dims(self, model, image_size, no_layers):
-        img = torch.rand(2, 3, image_size, image_size)
-        out = model(img, classify_only=False)
-        dims = [layer_output.size(1) for layer_output in out[:-1]]
-        return dims[-no_layers:]
-    
-    def forward(self, x):
-        return [self.rescaling_head[i](features.detach()) for i, features in enumerate(x)]
-
-
-class ProjectionMLPHead(nn.Module):
-    def __init__(self, linear: bool = False, layer_norm: bool = False, 
-                 no_layers: int = 3, in_features: int = None, 
-                 out_features: int = None, hidden_size: int = None, 
-                 layer_norm_eps: float = 1e-12, dropout_prob: float = 0.1):
-        super().__init__()
-        
-        self.no_layers = no_layers
-
-        if no_layers != 1 and not hidden_size:
-            hidden_size = out_features
-        
-        if linear:
-            self.no_layers = 1
-            self.projector = nn.Sequential(
-                nn.Linear(in_features, out_features, bias=True)
-            )
-        else:
-            if not layer_norm:
-                if no_layers == 1:
-                    self.projector = nn.Sequential(
-                        nn.Linear(in_features, out_features, bias=True),
-                        nn.BatchNorm1d(out_features)
-                    )
-                elif no_layers == 2:
-                    self.projector = nn.Sequential(
-                        nn.Linear(in_features, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
-                        nn.ReLU(inplace=True),
-                        nn.Linear(hidden_size, out_features),
-                        nn.BatchNorm1d(out_features)
-                    )
-                else:
-                    self.projector = nn.Sequential(
-                        nn.Linear(in_features, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
-                        nn.ReLU(inplace=True),
-                        nn.Linear(hidden_size, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
-                        nn.ReLU(inplace=True),
-                        nn.Linear(hidden_size, out_features),
-                        nn.BatchNorm1d(out_features)
-                    )
-            else:
-                if no_layers == 1:
-                    self.projector = nn.Sequential(
-                        nn.Linear(in_features, out_features, bias=True),
-                        nn.LayerNorm(out_features, eps=layer_norm_eps)
-                    )
-                elif no_layers == 2:
-                    self.projector = nn.Sequential(
-                        nn.Linear(in_features, hidden_size),
-                        nn.LayerNorm(hidden_size, eps=layer_norm_eps),
-                        nn.GELU(),
-                        nn.Linear(hidden_size, out_features),
-                        nn.LayerNorm(out_features, eps=layer_norm_eps)
-                    )
-                else:
-                    self.projector = nn.Sequential(
-                        nn.Linear(in_features, hidden_size),
-                        nn.LayerNorm(hidden_size, eps=layer_norm_eps),
-                        nn.GELU(),
-                        nn.Linear(hidden_size, hidden_size),
-                        nn.LayerNorm(hidden_size, eps=layer_norm_eps),
-                        nn.GELU(),
-                        nn.Linear(hidden_size, out_features),
-                        nn.LayerNorm(out_features, eps=layer_norm_eps)
-                    )
-                
-    def forward(self, x):
-        return self.projector(x)
-    
 
 class SupConLoss(nn.Module):
     """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf.
     It also supports the unsupervised contrastive loss in SimCLR"""
     def __init__(self, temperature=0.07, contrast_mode='all',
-                 base_temperature=0.07):
+                 base_temperature=0.07, return_logits=False):
         super(SupConLoss, self).__init__()
         self.temperature = temperature
         self.contrast_mode = contrast_mode
         self.base_temperature = base_temperature
+        self.return_logits = return_logits
 
     def forward(self, features, labels=None, mask=None):
         """Compute loss for model. If both `labels` and `mask` are None,
@@ -247,7 +161,7 @@ class SupConLoss(nn.Module):
         # for numerical stability
         logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
         logits = anchor_dot_contrast - logits_max.detach()
-
+        
         # tile mask
         mask = mask.repeat(anchor_count, contrast_count)
         # mask-out self-contrast cases
@@ -261,8 +175,11 @@ class SupConLoss(nn.Module):
 
         # compute log_prob
         exp_logits = torch.exp(logits) * logits_mask
-        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
+        if self.return_logits:
+            return exp_logits
 
+        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
+        
         # compute mean of log-likelihood over positive
         mean_log_prob_pos = (mask * log_prob).sum(1) / mask.sum(1)
 
