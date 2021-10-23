@@ -86,6 +86,10 @@ def main():
     elif opt.distill == 'ifacrdv2':
         opt.s_dim = feat_s[-1].shape[1]
         opt.t_dim = feat_t[-1].shape[1]
+        rescaler_s = Rescaler(opt, model_s)
+        proj_s = MLP(
+            layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
+            in_features=opt.s_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
         if opt.sskd:
             criterion_init = IFACRDv2Loss(opt)
             criterion_kd = IFACRDv2Loss(opt, return_logits=True)
@@ -104,10 +108,6 @@ def main():
             module_list.append(proj_t)
         else:
             criterion_kd = IFACRDv2Loss(opt)
-        rescaler_s = Rescaler(opt, model_s)
-        proj_s = MLP(
-            layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
-            in_features=opt.s_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
         module_list.append(rescaler_s)
         module_list.append(proj_s)
         trainable_list.append(rescaler_s)

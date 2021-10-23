@@ -201,7 +201,7 @@ def parse_option_student():
     
     opt = add_adjust_common_dependent(opt)
     # set layers argument to blocks when using any method that is not ifacrd
-    if opt.distill != 'ifacrd':
+    if opt.distill not in ['ifacrd', 'ifacrdv2']:
         if opt.distill == 'abound':
             opt.layers = 'preact'
         else:
