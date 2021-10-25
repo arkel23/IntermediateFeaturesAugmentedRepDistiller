@@ -11,6 +11,7 @@ from .mobilenetv2 import mobile_half
 from .ShuffleNetv1 import ShuffleV1
 from .ShuffleNetv2 import ShuffleV2
 
+
 model_dict = {
     'resnet8': resnet8,
     'resnet14': resnet14,
@@ -38,10 +39,12 @@ model_dict = {
     'ShuffleV2': ShuffleV2,
 }
 
+
 def model_extractor(model_name, num_classes, layers='default'):#, state_dict_path=False):
     m = model_dict[model_name](num_classes=num_classes)
     model = Extractor(m, model_name, layers)
     return model
+
 
 class Extractor(nn.Module):
     def __init__(self, model, model_name, layers='default'):

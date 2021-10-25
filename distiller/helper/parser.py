@@ -109,10 +109,14 @@ def parse_option_teacher():
 def parse_option_linear():
     
     parser = parse_common()
+    parser.add_argument('--sste', action='store_true', help='SS training and evaluation')
     parser.add_argument('--path_model', type=str, default=None, help='model snapshot')
     parser.set_defaults(epochs=100, base_lr=0.4, sched='cosine')
     opt = parser.parse_args()
 
+    if opt.sste:
+        with open('sste.txt', 'r') as myfile:
+            opt.path_model = myfile.read().splitlines()[-1]
     opt.model = get_model_name(opt.path_model)
     opt = add_adjust_common_dependent(opt)
 
@@ -129,6 +133,7 @@ def parse_option_linear():
 def parse_option_student():
     
     parser = parse_common()
+    parser.add_argument('--sste', action='store_true', help='SS training and evaluation')
     # model
     parser.add_argument('--model_s', type=str, default='resnet8', choices=[
         'resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 
@@ -193,8 +198,6 @@ def parse_option_student():
     
     opt = add_adjust_common_dependent(opt)
     
-    
-    
     # set layers argument to default when using any method that is not ifacrd(/v2)
     if opt.distill not in ['ifacrd', 'ifacrdv2']:
         if opt.distill == 'abound':
@@ -214,6 +217,10 @@ def parse_option_student():
             opt.simclr_aug = True
         else:
             opt.sskd = False
+
+    if opt.sste:
+        opt.gamma = 0
+        opt.alpha = 0
 
     if opt.distill == 'ifacrd':
         opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_contl{}{}_aug{}s{}t{}_rsl{}hd{}ln{}detach_pjl{}out{}hd{}ln{}_{}'.format(
@@ -235,6 +242,10 @@ def parse_option_student():
 
     opt.save_folder = os.path.join('save', 'student_model', opt.model_name)
     os.makedirs(opt.save_folder, exist_ok=True)
+
+    if opt.sste:
+        with open('sste.txt', 'w') as myfile:
+            myfile.write(os.path.join(opt.save_folder, '{}_last.pth'.format(opt.model_s)))
 
     print(opt)
     return opt

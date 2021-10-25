@@ -3,9 +3,12 @@ import torch
 
 from distiller.models import model_extractor
 
+
 def get_model_name(path_model):
     """parse model name"""
     segments = path_model.split('/')[-2].split('_')
+    if segments[0].startswith('S'):
+        segments = path_model.split('/')[-1].split('_')
     if segments[0] != 'wrn':
         return segments[0]
     else:
