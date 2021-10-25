@@ -43,14 +43,6 @@ def parse_common():
 
 def add_adjust_common_dependent(opt):
     
-    if opt.simclr_aug == False:
-        opt.cont_s = 0
-        opt.cont_t = 0
-    if opt.distill == 'ifacrdv2':
-        opt.simclr_aug = True
-    else:
-        opt.sskd = False
-    
     if opt.dataset == 'imagenet':
         opt.image_size = 224
     else:
@@ -200,13 +192,28 @@ def parse_option_student():
         opt.model_t = opt.model_s
     
     opt = add_adjust_common_dependent(opt)
-    # set layers argument to blocks when using any method that is not ifacrd
+    
+    
+    
+    # set layers argument to default when using any method that is not ifacrd(/v2)
     if opt.distill not in ['ifacrd', 'ifacrdv2']:
         if opt.distill == 'abound':
             opt.layers = 'preact'
         else:
             opt.layers = 'default'
+        opt.simclr_aug = False
+        opt.sskd = False
         opt.cont_no_l = 0
+        opt.cont_s = 0
+        opt.cont_t = 0
+    else:
+        if opt.simclr_aug == False:
+            opt.cont_s = 0
+            opt.cont_t = 0
+        if opt.distill == 'ifacrdv2':
+            opt.simclr_aug = True
+        else:
+            opt.sskd = False
 
     if opt.distill == 'ifacrd':
         opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_contl{}{}_aug{}s{}t{}_rsl{}hd{}ln{}detach_pjl{}out{}hd{}ln{}_{}'.format(

@@ -19,15 +19,14 @@ class ShuffleBlock(nn.Module):
 
 
 class SplitBlock(nn.Module):
-    def __init__(self, ratio):
+    def __init__(self, in_channels, ratio):
         super(SplitBlock, self).__init__()
         self.ratio = ratio
+        self.c = in_channels
 
-    def forward(self, x, test=True):
-        if test:
-            c = int(3 * self.ratio)
-        else:
-            c = int(x.size(1) * self.ratio)
+    def forward(self, x):
+        #c = int(x.size(1) * self.ratio)
+        c = int(self.c * self.ratio)
         return x[:, :c, :, :], x[:, c:, :, :]
 
 
@@ -35,7 +34,7 @@ class BasicBlock(nn.Module):
     def __init__(self, in_channels, split_ratio=0.5, is_last=False):
         super(BasicBlock, self).__init__()
         self.is_last = is_last
-        self.split = SplitBlock(split_ratio)
+        self.split = SplitBlock(in_channels, split_ratio)
         in_channels = int(in_channels * split_ratio)
         self.conv1 = nn.Conv2d(in_channels, in_channels,
                                kernel_size=1, bias=False)
@@ -207,9 +206,7 @@ if __name__ == '__main__':
     x = torch.randn(3, 3, 32, 32)
     import time
     a = time.time()
-    feats, logit = net(x, is_feat=True, preact=True)
+    out = net(x, is_feat=True, preact=True)
     b = time.time()
     print(b - a)
-    for f in feats:
-        print(f.shape, f.min().item())
-    print(logit.shape)
+

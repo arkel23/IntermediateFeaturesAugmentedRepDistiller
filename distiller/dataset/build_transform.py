@@ -22,8 +22,9 @@ class ApplyTransform:
         self.std = self.STD[opt.dataset]
         
         self.transform = self.standard_transform(opt, split)
-        if opt.distill in ['ifacrd', 'ifacrdv2'] and opt.simclr_aug and split == 'train':
-            self.transform_agg = self.simclr_transform(opt)
+        if hasattr(opt, 'distill'):
+            if opt.distill in ['ifacrd', 'ifacrdv2'] and opt.simclr_aug and split == 'train':
+                self.transform_agg = self.simclr_transform(opt)
             
     def __call__(self, x):
         if hasattr(self, 'transform_agg'):
