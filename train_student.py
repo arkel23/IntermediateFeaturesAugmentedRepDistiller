@@ -34,8 +34,8 @@ def main():
     train_loader, val_loader, n_cls, n_data = build_dataloaders(opt, vanilla=False)
     
     # model
-    model_t = load_teacher(opt.path_t, n_cls, opt.layers)
-    model_s = model_extractor(opt.model_s, num_classes=n_cls, layers=opt.layers)
+    model_t = load_teacher(opt.path_t, n_cls, opt.image_size, opt.pretrained, layers=opt.layers)
+    model_s = model_extractor(opt.model_s, n_cls, opt.image_size, opt.pretrained, layers=opt.layers)
     
     # init wandb logger
     if opt.local_rank == 0:
@@ -86,7 +86,7 @@ def main():
     elif opt.distill == 'ifacrdv2':
         opt.s_dim = feat_s[-1].shape[1]
         opt.t_dim = feat_t[-1].shape[1]
-        rescaler_s = Rescaler(opt, model_s)
+        rescaler_s = Rescaler(opt, model_s, opt.model_s)
         proj_s = MLP(
             layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
             in_features=opt.s_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
@@ -94,7 +94,7 @@ def main():
             criterion_init = IFACRDv2Loss(opt)
             criterion_kd = IFACRDv2Loss(opt, return_logits=True)
             # init stage training
-            rescaler_t = Rescaler(opt, model_t)
+            rescaler_t = Rescaler(opt, model_t, opt.model_t)
             proj_t = MLP(
                 layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
                 in_features=opt.t_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim

@@ -38,7 +38,7 @@ class IFACRDLoss(nn.Module):
             layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
             in_features=opt.t_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
         
-        self.rescaler = Rescaler(opt, model_t)
+        self.rescaler = Rescaler(opt, model_t, opt.model_)
         
         self.criterion = SupConLoss(temperature=opt.nce_t, base_temperature=opt.nce_t, contrast_mode='all')
        

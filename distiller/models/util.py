@@ -15,7 +15,7 @@ class LinearClassifier(nn.Module):
     
 
 class Rescaler(nn.Module):
-    def __init__(self, opt, model):
+    def __init__(self, opt, model, model_name):
         super().__init__()
         
         self.detach = opt.rs_detach
@@ -23,7 +23,7 @@ class Rescaler(nn.Module):
         original_dimensions = self.get_reduction_dims(model, opt.image_size, opt.cont_no_l)
         final_dim = original_dimensions[-1]
         
-        if opt.model_t not in []: # placeholder in case includes vits        
+        if model_name not in ['B_16', 'B_32', 'L_16']:
             self.rescaling_head = nn.ModuleList([
                 MLP(
                     layer_norm=opt.rs_ln, no_layers=opt.rs_no_l, hidden_size=opt.rs_hid_dim, 

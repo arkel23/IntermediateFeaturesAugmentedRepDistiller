@@ -49,7 +49,7 @@ def main():
     train_loader, val_loader, n_cls = build_dataloaders(opt)
     
     # backbone
-    backbone = load_model(opt.path_model, n_cls, 'default')
+    backbone = load_model(opt.path_model, n_cls, opt.image_size, opt.pretrained, layers='default')
     backbone.to(opt.device)
     backbone.eval()
     

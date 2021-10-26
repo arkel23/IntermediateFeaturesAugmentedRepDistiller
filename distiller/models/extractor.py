@@ -10,6 +10,7 @@ from .vgg import vgg19_bn, vgg16_bn, vgg13_bn, vgg11_bn, vgg8_bn
 from .mobilenetv2 import mobile_half
 from .ShuffleNetv1 import ShuffleV1
 from .ShuffleNetv2 import ShuffleV2
+from .vit import vit
 
 
 model_dict = {
@@ -40,8 +41,12 @@ model_dict = {
 }
 
 
-def model_extractor(model_name, num_classes, layers='default'):#, state_dict_path=False):
-    m = model_dict[model_name](num_classes=num_classes)
+def model_extractor(model_name, num_classes, image_size, 
+                    pretrained=False, layers='default'):
+    if model_name in ['B_16', 'B_32', 'L_16']:
+        m = vit(model_name, num_classes, image_size, pretrained)
+    else:
+        m = model_dict[model_name](num_classes=num_classes)
     model = Extractor(m, model_name, layers)
     return model
 
@@ -50,11 +55,42 @@ class Extractor(nn.Module):
     def __init__(self, model, model_name, layers='default'):
         super(Extractor, self).__init__()
         self.model_name = model_name
-        return_nodes = self.get_return_nodes(model, model_name, layers)
-        self.model = feature_extraction.create_feature_extractor(model, return_nodes=return_nodes)
-        
-        if layers not in ['default', 'preact', 'last_only']:
-            self.pool = nn.Sequential(nn.AdaptiveAvgPool2d(1), Rearrange('b c 1 1 -> b c'))
+        if model_name in ['B_16', 'B_32', 'L_16']:
+            self.model = model
+            if layers not in ['default', 'preact', 'last_only']:
+                self.pool = nn.Sequential(
+                    Rearrange('b s c -> b c s'),
+                    nn.AdaptiveAvgPool1d(1),
+                    Rearrange('b c 1 -> b c'),
+                    )
+        else:
+            return_nodes = self.get_return_nodes(model, model_name, layers)
+            self.model = feature_extraction.create_feature_extractor(model, return_nodes=return_nodes)
+            if layers not in ['default', 'preact', 'last_only']:
+                self.pool = nn.Sequential(
+                    nn.AdaptiveAvgPool2d(1), 
+                    Rearrange('b c 1 1 -> b c')
+                    )
+
+    def forward(self, x, classify_only=True):
+        if self.model_name in ['B_16', 'B_32', 'L_16']:
+            x, interm_feats = self.model(x)
+            if classify_only:
+                return x
+            else:
+                if hasattr(self, 'pool'):
+                    return [self.pool(feats) for feats in interm_feats] + [x]
+                else:
+                    return interm_feats + [x]
+        else:
+            x = list(self.model(x).values())
+            if classify_only:
+                return x[-1]
+            else:
+                if hasattr(self, 'pool'):
+                    return [self.pool(feats) for feats in x[:-1]] + [x[-1]]  
+                else:
+                    return x
 
     def get_feat_modules(self):
         feat_m = nn.ModuleList([])
@@ -109,16 +145,6 @@ class Extractor(nn.Module):
             raise NotImplementedError    
         return feat_m
   
-    def forward(self, x, classify_only=True):
-        x = list(self.model(x).values())
-        if classify_only:
-            return x[-1]
-        else:
-            if hasattr(self, 'pool'):
-                return [self.pool(feats) for feats in x[:-1]] + [x[-1]]  
-            else:
-                return x
-            
     def get_return_nodes(self, model, model_name, layers):
         # train_nodes, eval_nodes = feature_extraction.get_graph_node_names(model)
         if layers == 'last':

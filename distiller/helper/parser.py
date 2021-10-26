@@ -13,9 +13,11 @@ def parse_common():
     parser.add_argument('--print_freq', type=int, default=100, help='print frequency')
     parser.add_argument('--save_freq', type=int, default=40, help='save frequency')
     parser.add_argument('--batch_size', type=int, default=64, help='batch_size')
+    parser.add_argument('--image_size', type=int, default=None, help='image_size')
     parser.add_argument('--num_workers', type=int, default=4, help='num of workers to use')
     parser.add_argument('--epochs', type=int, default=240, help='number of training epochs')
-
+    parser.add_argument('--pretrained', action='store_true', help='use pretrained model on imagenet')
+    
     # optimization
     parser.add_argument('--opt', default='sgd', type=str, help='Optimizer (default: "sgd"')
     parser.add_argument('--base_lr', type=float, default=0.2, help='base learning rate to scale based on batch size')
@@ -43,10 +45,11 @@ def parse_common():
 
 def add_adjust_common_dependent(opt):
     
-    if opt.dataset == 'imagenet':
-        opt.image_size = 224
-    else:
-        opt.image_size = 32
+    if not opt.image_size:
+        if opt.dataset == 'imagenet':
+            opt.image_size = 224
+        else:
+            opt.image_size = 32
     
     # set different learning rate from these 4 models
     if hasattr(opt, 'model'):
@@ -91,13 +94,14 @@ def parse_option_teacher():
         'resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 
         'resnet110', 'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 
         'wrn_40_2', 'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet18', 
-        'ResNet34', 'ResNet50', 'MobileNetV2', 'ShuffleV1', 'ShuffleV2'])
+        'ResNet34', 'ResNet50', 'MobileNetV2', 'ShuffleV1', 'ShuffleV2',
+        'B_16', 'B_32', 'L_16'])
     opt = parser.parse_args()
     
     opt = add_adjust_common_dependent(opt)
     
-    opt.model_name = '{}_{}_is{}_bs{}_blr{}_decay_{}_trial_{}'.format(opt.model, opt.dataset, 
-        opt.image_size, opt.batch_size, opt.base_lr, opt.weight_decay, opt.trial)
+    opt.model_name = '{}_{}_is{}_bs{}_blr{}decay{}_tr{}sd{}'.format(opt.model, opt.dataset, 
+        opt.image_size, opt.batch_size, opt.base_lr, opt.weight_decay, opt.trial, opt.seed)
     
     opt.save_folder = os.path.join('save', 'models', opt.model_name)
     os.makedirs(opt.save_folder, exist_ok=True)
@@ -120,8 +124,8 @@ def parse_option_linear():
     opt.model = get_model_name(opt.path_model)
     opt = add_adjust_common_dependent(opt)
 
-    opt.model_name = 'linear_{}_{}_is{}_bs{}_blr{}_decay_{}_trial_{}'.format(opt.model, opt.dataset, 
-        opt.image_size, opt.batch_size, opt.base_lr, opt.weight_decay, opt.trial)
+    opt.model_name = 'linear_{}_{}_is{}_bs{}_blr{}decay{}_tr{}sd{}'.format(opt.model, opt.dataset, 
+        opt.image_size, opt.batch_size, opt.base_lr, opt.weight_decay, opt.trial, opt.seed)
 
     opt.save_folder = os.path.join('save', 'linear', opt.model_name)
     os.makedirs(opt.save_folder, exist_ok=True)
@@ -139,7 +143,8 @@ def parse_option_student():
         'resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 
         'resnet110', 'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 
         'wrn_40_2', 'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet18', 
-        'ResNet34', 'ResNet50', 'MobileNetV2', 'ShuffleV1', 'ShuffleV2'])
+        'ResNet34', 'ResNet50', 'MobileNetV2', 'ShuffleV1', 'ShuffleV2',
+        'B_16', 'B_32', 'L_16'])
     parser.add_argument('--path_t', type=str, default=None, help='teacher model snapshot')
 
     # distillation
@@ -224,22 +229,22 @@ def parse_option_student():
         opt.sched = 'cosine'
 
     if opt.distill == 'ifacrd':
-        opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_contl{}{}_aug{}s{}t{}_rsl{}hd{}ln{}detach_pjl{}out{}hd{}ln{}_{}'.format(
+        opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_contl{}{}_aug{}s{}t{}_rsl{}hd{}ln{}detach_pjl{}out{}hd{}ln{}_tr{}sd{}'.format(
             opt.model_s, opt.model_t, opt.dataset, opt.distill, opt.gamma, opt.alpha, opt.beta, opt.batch_size, 
             opt.base_lr, opt.weight_decay, opt.nce_t, opt.cont_no_l, opt.layers, 
             opt.simclr_aug, opt.cont_s, opt.cont_t,
             opt.rs_no_l, opt.rs_hid_dim, opt.rs_ln, opt.rs_detach,
-            opt.proj_no_l, opt.feat_dim, opt.proj_hid_dim, opt.proj_ln, opt.trial)
+            opt.proj_no_l, opt.feat_dim, opt.proj_hid_dim, opt.proj_ln, opt.trial, opt.seed)
     elif opt.distill == 'ifacrdv2':
-        opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_contl{}{}_sskd{}_rsl{}hd{}ln{}detach_pjl{}out{}hd{}ln{}_{}'.format(
+        opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_contl{}{}_sskd{}_rsl{}hd{}ln{}detach_pjl{}out{}hd{}ln{}_tr{}sd{}'.format(
             opt.model_s, opt.model_t, opt.dataset, opt.distill, opt.gamma, opt.alpha, opt.beta, opt.batch_size, 
             opt.base_lr, opt.weight_decay, opt.nce_t, opt.cont_no_l, opt.layers, 
             opt.sskd, opt.rs_no_l, opt.rs_hid_dim, opt.rs_ln, opt.rs_detach,
-            opt.proj_no_l, opt.feat_dim, opt.proj_hid_dim, opt.proj_ln, opt.trial)
+            opt.proj_no_l, opt.feat_dim, opt.proj_hid_dim, opt.proj_ln, opt.trial, opt.seed)
     else:
-        opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_{}'.format(
+        opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_tr{}sd{}'.format(
             opt.model_s, opt.model_t, opt.dataset, opt.distill, opt.gamma, opt.alpha, opt.beta, opt.batch_size,
-            opt.base_lr, opt.weight_decay, opt.nce_t, opt.trial)
+            opt.base_lr, opt.weight_decay, opt.nce_t, opt.trial, opt.seed)
 
     opt.save_folder = os.path.join('save', 'student_model', opt.model_name)
     os.makedirs(opt.save_folder, exist_ok=True)

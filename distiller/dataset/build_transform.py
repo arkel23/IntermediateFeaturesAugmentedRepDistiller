@@ -35,18 +35,20 @@ class ApplyTransform:
     def standard_transform(self, opt, split):
         t = []
         if split == 'train':
-            if opt.dataset in ['cifar10', 'cifar100', 'cinic10', 'svhn']:
-                t.append(transforms.RandomCrop(32, padding=4))
-                t.append(transforms.RandomHorizontalFlip())
-            else:
+            if opt.dataset in ['imagenet']:
                 t.append(transforms.RandomResizedCrop(opt.image_size))
-                t.append(transforms.RandomHorizontalFlip())
+            elif opt.image_size == 32 and opt.dataset in ['cifar10', 'cifar100', 'cinic10', 'svhn']:
+                t.append(transforms.RandomCrop(opt.image_size, padding=4))
+            else:
+                t.append(transforms.Resize(opt.image_size+32))
+                t.append(transforms.RandomCrop(opt.image_size))
+            t.append(transforms.RandomHorizontalFlip())
         else:
-            if opt.dataset in ['stl10', 'tinyimagenet']:
-                t.append(transforms.Resize(32))
-            elif opt.dataset in ['imagenet']:
+            if opt.dataset in ['imagenet']:
                 t.append(transforms.Resize(opt.image_size+32))
                 t.append(transforms.CenterCrop(opt.image_size))
+            elif opt.image_size != 32 or opt.dataset in ['stl10', 'tinyimagenet']:
+                t.append(transforms.Resize(opt.image_size))
                             
         t.append(transforms.ToTensor())
         t.append(transforms.Normalize(self.mean, self.std))
@@ -58,10 +60,13 @@ class ApplyTransform:
         color_jitter = transforms.ColorJitter(0.8 * s, 0.8 * s, 0.8 * s, 0.2 * s)
         
         t = []
-        if opt.image_size == 32:
-            t.append(transforms.RandomCrop(32, padding=4))
+        if opt.dataset in ['imagenet']:
+            t.append(transforms.RandomResizedCrop(opt.image_size))
+        elif opt.image_size == 32 and opt.dataset in ['cifar10', 'cifar100', 'cinic10', 'svhn']:
+            t.append(transforms.RandomCrop(opt.image_size, padding=4))
         else:
-            t.append(transforms.RandomResizedCrop(size=opt.image_size))
+            t.append(transforms.Resize(opt.image_size+32))
+            t.append(transforms.RandomCrop(opt.image_size))
 
         transform = [
                 transforms.RandomHorizontalFlip(),  # with 0.5 probability

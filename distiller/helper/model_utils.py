@@ -8,17 +8,18 @@ def get_model_name(path_model):
     """parse model name"""
     segments = path_model.split('/')[-2].split('_')
     if segments[0].startswith('S'):
-        segments = path_model.split('/')[-1].split('_')
-    if segments[0] != 'wrn':
+        segments[0] = segments[0].replace('S', '')
+    if segments[0] not in ['wrn', 'B', 'L']:
         return segments[0]
-    else:
+    elif segments[0] == 'wrn':
         return segments[0] + '_' + segments[1] + '_' + segments[2]
+    else:
+        return segments[0] + '_' + segments[1]
 
-
-def load_model(path_model, n_cls, layers):
+def load_model(path_model, n_cls, image_size, pretrained, layers):
     print('==> loading model')
     model_name = get_model_name(path_model)
-    model = model_extractor(model_name, num_classes=n_cls, layers=layers)
+    model = model_extractor(model_name, n_cls, image_size, pretrained, layers)
     
     state_dict = torch.load(path_model)['model']
     for key in list(state_dict.keys())[-2:]:
@@ -31,10 +32,10 @@ def load_model(path_model, n_cls, layers):
     return model
 
 
-def load_teacher(path_model, n_cls, layers):
+def load_teacher(path_model, n_cls, image_size, pretrained, layers):
     print('==> loading teacher model')
     model_t = get_model_name(path_model)
-    model = model_extractor(model_t, num_classes=n_cls, layers=layers)
+    model = model_extractor(model_t, n_cls, image_size, pretrained, layers)
     model.load_state_dict(torch.load(path_model)['model'], strict=True)
     print('==> done')
     return model
