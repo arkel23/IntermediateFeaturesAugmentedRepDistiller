@@ -221,6 +221,7 @@ def parse_option_student():
     if opt.sste:
         opt.gamma = 0
         opt.alpha = 0
+        opt.sched = 'cosine'
 
     if opt.distill == 'ifacrd':
         opt.model_name = 'S{}_T{}_{}_{}_r{}_a{}_b{}_bs{}_blr{}wd{}_temp{}_contl{}{}_aug{}s{}t{}_rsl{}hd{}ln{}detach_pjl{}out{}hd{}ln{}_{}'.format(
