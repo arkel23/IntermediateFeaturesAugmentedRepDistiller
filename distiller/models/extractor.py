@@ -1,6 +1,8 @@
 
+import math
 import torch.nn as nn
 import torchvision.models.feature_extraction as feature_extraction
+import einops
 from einops.layers.torch import Rearrange
 
 from .resnet import resnet8, resnet14, resnet20, resnet32, resnet44, resnet56, resnet110, resnet8x4, resnet32x4
@@ -63,6 +65,12 @@ class Extractor(nn.Module):
                     nn.AdaptiveAvgPool1d(1),
                     Rearrange('b c 1 -> b c'),
                     )
+            else:
+                self.last_pool = nn.Sequential(
+                    Rearrange('b s c -> b c s'),
+                    nn.AdaptiveAvgPool1d(1),
+                    Rearrange('b c 1 -> b c'),
+                )
         else:
             return_nodes = self.get_return_nodes(model, model_name, layers)
             self.model = feature_extraction.create_feature_extractor(model, return_nodes=return_nodes)
@@ -81,7 +89,11 @@ class Extractor(nn.Module):
                 if hasattr(self, 'pool'):
                     return [self.pool(feats) for feats in interm_feats] + [x]
                 else:
-                    return interm_feats + [x]
+                    pooled_logits = self.last_pool(interm_feats[-1])
+                    interm_feats = [feats[:, 1:, :] for feats in interm_feats]
+                    s = [feats.shape[1] for feats in interm_feats]
+                    return [einops.rearrange(feats, 'b (s1 s2) c -> b c s1 s2', s1=int(math.sqrt(s[i]))) \
+                        for i, feats in enumerate(interm_feats)] + [pooled_logits] + [x]
         else:
             x = list(self.model(x).values())
             if classify_only:
