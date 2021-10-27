@@ -235,7 +235,7 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
 
         # other kd beyond KL divergence
         if opt.distill == 'kd':
-            loss_kd = 0
+            loss_kd = torch.tensor(0)
         elif opt.distill == 'hint':
             f_s = module_list[1](feat_s[opt.hint_layer])
             f_t = feat_t[opt.hint_layer]
@@ -316,7 +316,7 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             loss_kd = sum(loss_group)
         elif opt.distill == 'abound':
             # can also add loss to this stage
-            loss_kd = 0
+            loss_kd = torch.tensor(0)
             #g_s = module_list[1](feat_s[1:-1])
             #g_t = feat_t[1:-1]
             #loss_group = criterion_kd(g_s, g_t)
