@@ -5,6 +5,6 @@
 # install first https://github.com/arkel23/PyTorch-Pretrained-ViT 
 einops==0.3.0
 #pytorch-lightning==1.4.4
-#transformers==4.9.1
+transformers==4.9.1
 wandb==0.11.2
 timm==0.4.12

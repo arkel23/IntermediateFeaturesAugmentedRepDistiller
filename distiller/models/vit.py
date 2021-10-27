@@ -1,8 +1,7 @@
 import torch.nn as nn
 import torchvision.models as models
 
-from .pretrained_vit.model import ViT
-from .pretrained_vit.configs import PRETRAINED_CONFIGS, ViTConfigExtended
+from pretrained_vit import ViT, PRETRAINED_CONFIGS, ViTConfigExtended
 
 
 def vit(model_name, num_classes, image_size, pretrained):
