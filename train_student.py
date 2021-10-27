@@ -199,9 +199,9 @@ def main():
         torch.backends.cudnn.benchmark = True
     if opt.distributed:
         module_list = nn.SyncBatchNorm.convert_sync_batchnorm(module_list)
-        module_list = DDP(module_list, device_ids=[opt.local_rank])
+        module_list = [DDP(module, device_ids=[opt.local_rank]) for module in module_list]
         criterion_list = nn.SyncBatchNorm.convert_sync_batchnorm(criterion_list)
-        criterion_list = DDP(criterion_list, device_ids=[opt.local_rank])
+        criterion_list = [DDP(crit, device_ids=[opt.local_rank]) for crit in criterion_list]
     
     # validate teacher accuracy
     teacher_acc, _ = validate(val_loader, model_t, criterion_cls, opt)
