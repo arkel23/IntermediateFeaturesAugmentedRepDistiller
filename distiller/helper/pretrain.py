@@ -29,7 +29,9 @@ def init(model_s, model_t, init_modules, criterion, train_loader, opt):
         init_modules = [torch.nn.SyncBatchNorm.convert_sync_batchnorm(m) for m in init_modules]
         model_s = DDP(model_s, device_ids=[opt.local_rank])
         model_t = DDP(model_t, device_ids=[opt.local_rank])
-        init_modules = [DDP(m, device_ids=[opt.local_rank]) for m in init_modules]
+        params = [sum([p.numel() for p in m.parameters() if p.requires_grad]) for m in init_modules]
+        init_modules = [DDP(m, device_ids=[opt.local_rank]) \
+            if params[i] > 0 else m for i, m in enumerate(init_modules)]
     if torch.cuda.is_available():
         torch.backends.cudnn.benchmark = True
 

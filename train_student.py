@@ -199,9 +199,13 @@ def main():
         torch.backends.cudnn.benchmark = True
     if opt.distributed:
         module_list = [nn.SyncBatchNorm.convert_sync_batchnorm(m) for m in module_list]
-        module_list = [DDP(m, device_ids=[opt.local_rank]) for m in module_list]
+        params = [sum([p.numel() for p in m.parameters() if p.requires_grad]) for m in module_list]
+        module_list = [DDP(m, device_ids=[opt.local_rank]) \
+            if params[i] > 0 else m for i, m in enumerate(module_list)]
         criterion_list = [nn.SyncBatchNorm.convert_sync_batchnorm(c) for c in criterion_list]
-        criterion_list = [DDP(c, device_ids=[opt.local_rank]) for c in criterion_list]
+        params = [sum([p.numel() for p in c.parameters() if p.requires_grad]) for c in criterion_list]
+        criterion_list = [DDP(c, device_ids=[opt.local_rank]) \
+            if params[i] > 0 else c for i, c in enumerate(criterion_list)]
     
     # validate teacher accuracy
     teacher_acc, _ = validate(val_loader, model_t, criterion_cls, opt)
