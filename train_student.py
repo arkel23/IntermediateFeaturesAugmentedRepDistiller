@@ -198,10 +198,10 @@ def main():
     if torch.cuda.is_available():
         torch.backends.cudnn.benchmark = True
     if opt.distributed:
-        module_list = nn.SyncBatchNorm.convert_sync_batchnorm(module_list)
-        module_list = [DDP(module, device_ids=[opt.local_rank]) for module in module_list]
-        #criterion_list = nn.SyncBatchNorm.convert_sync_batchnorm(criterion_list)
-        #criterion_list = [DDP(crit, device_ids=[opt.local_rank]) for crit in criterion_list]
+        module_list = [nn.SyncBatchNorm.convert_sync_batchnorm(m) for m in module_list]
+        module_list = [DDP(m, device_ids=[opt.local_rank]) for m in module_list]
+        criterion_list = [nn.SyncBatchNorm.convert_sync_batchnorm(c) for c in criterion_list]
+        criterion_list = [DDP(c, device_ids=[opt.local_rank]) for c in criterion_list]
     
     # validate teacher accuracy
     teacher_acc, _ = validate(val_loader, model_t, criterion_cls, opt)
