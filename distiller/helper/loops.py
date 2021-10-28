@@ -389,7 +389,8 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             .format(top1=top1, top5=top5))
 
     if opt.distributed:
-        distribute_bn(module_list, opt.world_size, True)        
+        #distribute_bn(module_list, opt.world_size, True)
+        [distribute_bn(m, opt.world_size, True) for m in module_list]        
 
     return top1.avg, losses.avg, losses_cls.avg, losses_div.avg, losses_kd.avg
 
