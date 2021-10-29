@@ -95,7 +95,7 @@ def parse_option_teacher():
         'resnet110', 'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 
         'wrn_40_2', 'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet18', 
         'ResNet34', 'ResNet50', 'MobileNetV2', 'ShuffleV1', 'ShuffleV2',
-        'B_16', 'B_32', 'L_16'])
+        'B_16', 'B_32', 'L_16', 'Bs_16', 'Bss_16'])
     opt = parser.parse_args()
     
     opt = add_adjust_common_dependent(opt)
@@ -144,7 +144,7 @@ def parse_option_student():
         'resnet110', 'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 
         'wrn_40_2', 'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet18', 
         'ResNet34', 'ResNet50', 'MobileNetV2', 'ShuffleV1', 'ShuffleV2',
-        'B_16', 'B_32', 'L_16'])
+        'B_16', 'B_32', 'L_16', 'Bs_16', 'Bss_16'])
     parser.add_argument('--path_t', type=str, default=None, help='teacher model snapshot')
 
     # distillation

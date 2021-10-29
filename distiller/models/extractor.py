@@ -45,7 +45,7 @@ model_dict = {
 
 def model_extractor(model_name, num_classes, image_size, 
                     pretrained=False, layers='default'):
-    if model_name in ['B_16', 'B_32', 'L_16']:
+    if model_name in ['B_16', 'B_32', 'L_16', 'Bs_16', 'Bss_16']:
         m = vit(model_name, num_classes, image_size, pretrained)
     else:
         m = model_dict[model_name](num_classes=num_classes)
@@ -57,7 +57,7 @@ class Extractor(nn.Module):
     def __init__(self, model, model_name, layers='default'):
         super(Extractor, self).__init__()
         self.model_name = model_name
-        if model_name in ['B_16', 'B_32', 'L_16']:
+        if model_name in ['B_16', 'B_32', 'L_16', 'Bs_16', 'Bss_16']:
             self.model = model
             if layers not in ['default', 'preact', 'last_only']:
                 self.pool = nn.Sequential(
@@ -81,7 +81,7 @@ class Extractor(nn.Module):
                     )
 
     def forward(self, x, classify_only=True):
-        if self.model_name in ['B_16', 'B_32', 'L_16']:
+        if self.model_name in ['B_16', 'B_32', 'L_16', 'Bs_16', 'Bss_16']:
             x, interm_feats = self.model(x)
             if classify_only:
                 return x
