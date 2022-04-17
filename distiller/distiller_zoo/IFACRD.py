@@ -34,9 +34,16 @@ class IFACRDLoss(nn.Module):
         self.proj_s  = MLP(
             layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
             in_features=opt.s_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
-        self.proj_t  = MLP(
-            layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
-            in_features=opt.t_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
+
+        self.proj_t = nn.ModuleList([
+            MLP(
+                layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
+                in_features=opt.t_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
+            for _ in range(self.cont_no_l)])
+
+        #self.proj_t  = MLP(
+        #    layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
+        #    in_features=opt.t_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
         
         self.rescaler = Rescaler(opt, model_t, opt.model_t)
         
@@ -67,27 +74,27 @@ class IFACRDLoss(nn.Module):
         if self.cont_t in [0, 1, 2]:
             f_t = f_t[-self.cont_no_l:]
             f_t = self.rescaler(f_t)
-            f_t = [self.proj_t(feat) for feat in f_t]
+            f_t = [self.proj_t[i](feat) for i, feat in enumerate(f_t)]
         elif self.cont_t == 3:
             f_t_1, f_t_2 = f_t
             f_t_1 = f_t_1[-self.cont_no_l:]
             f_t_1 = self.rescaler(f_t_1)
-            f_t_1 = [self.proj_t(feat) for feat in f_t_1]
+            f_t_1 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_1)]
             f_t_2 = f_t_2[-self.cont_no_l:]
             f_t_2 = self.rescaler(f_t_2)
-            f_t_2 = [self.proj_t(feat) for feat in f_t_2]
+            f_t_2 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_2)]
             f_t = f_t_1 + f_t_2
         elif self.cont_t == 4:
             f_t_0, f_t_1, f_t_2 = f_t
             f_t_0 = f_t_0[-self.cont_no_l:]
             f_t_0 = self.rescaler(f_t_0)
-            f_t_0 = [self.proj_t(feat) for feat in f_t_0] 
+            f_t_0 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_0)] 
             f_t_1 = f_t_1[-self.cont_no_l:]
             f_t_1 = self.rescaler(f_t_1)
-            f_t_1 = [self.proj_t(feat) for feat in f_t_1]
+            f_t_1 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_1)]
             f_t_2 = f_t_2[-self.cont_no_l:]
             f_t_2 = self.rescaler(f_t_2)
-            f_t_2 = [self.proj_t(feat) for feat in f_t_2]
+            f_t_2 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_2)]
             f_t = f_t_0 + f_t_1 + f_t_2
        
         if self.cont_s in [0, 1, 2]:
