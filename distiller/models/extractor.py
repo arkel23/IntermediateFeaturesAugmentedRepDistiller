@@ -163,125 +163,125 @@ class Extractor(nn.Module):
             if model_name == 'resnet8':
                 return_nodes = {
                     'layer2.0.relu': 'layerminus4',
-                    'layer2.0.relu_2': 'layerminus3',
+                    'layer2.0.relu_1': 'layerminus3',
                     'layer3.0.relu': 'layerminus2',
-                    'layer3.0.relu_3': 'layerminus1',
+                    'layer3.0.relu_1': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet14':
                 return_nodes = {
                     'layer3.0.relu': 'layerminus4',
-                    'layer3.0.relu_5': 'layerminus3',
+                    'layer3.0.relu_1': 'layerminus3',
                     'layer3.1.relu': 'layerminus2',
-                    'layer3.1.relu_6': 'layerminus1',
+                    'layer3.1.relu_1': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet20':
                 return_nodes = {
                     'layer3.0.relu': 'layerminus6',
-                    'layer3.0.relu_7': 'layerminus5',
+                    'layer3.0.relu_1': 'layerminus5',
                     'layer3.1.relu': 'layerminus4',
-                    'layer3.1.relu_8': 'layerminus3',
+                    'layer3.1.relu_1': 'layerminus3',
                     'layer3.2.relu': 'layerminus2',
-                    'layer3.2.relu_9': 'layerminus1',
+                    'layer3.2.relu_1': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet32':
                 return_nodes =  {
                     'layer3.0.relu': 'layerminus10',
-                    'layer3.0.relu_11': 'layerminus9',
+                    'layer3.0.relu_1': 'layerminus9',
                     'layer3.1.relu': 'layerminus8',
-                    'layer3.1.relu_12': 'layerminus7',
+                    'layer3.1.relu_1': 'layerminus7',
                     'layer3.2.relu': 'layerminus6',
-                    'layer3.2.relu_13': 'layerminus5',
+                    'layer3.2.relu_1': 'layerminus5',
                     'layer3.3.relu': 'layerminus4',
-                    'layer3.3.relu_14': 'layerminus3',
+                    'layer3.3.relu_1': 'layerminus3',
                     'layer3.4.relu': 'layerminus2',
-                    'layer3.4.relu_15': 'layerminus1',
+                    'layer3.4.relu_1': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet44':
                 return_nodes =  {
-                    'layer3.0.relu_15': 'layerminus14',
-                    'layer3.0.relu': 'layerminus13',
+                    'layer3.0.relu': 'layerminus14',
+                    'layer3.0.relu_1': 'layerminus13',
                     'layer3.1.relu': 'layerminus12',
-                    'layer3.1.relu_16': 'layerminus11',
+                    'layer3.1.relu_1': 'layerminus11',
                     'layer3.2.relu': 'layerminus10',
-                    'layer3.2.relu_17': 'layerminus9',
+                    'layer3.2.relu_1': 'layerminus9',
                     'layer3.3.relu': 'layerminus8',
-                    'layer3.3.relu_18': 'layerminus7',
+                    'layer3.3.relu_1': 'layerminus7',
                     'layer3.4.relu': 'layerminus6',
-                    'layer3.4.relu_19': 'layerminus5',
+                    'layer3.4.relu_1': 'layerminus5',
                     'layer3.5.relu': 'layerminus4',
-                    'layer3.5.relu_20': 'layerminus3',
+                    'layer3.5.relu_1': 'layerminus3',
                     'layer3.6.relu': 'layerminus2',
-                    'layer3.6.relu_21': 'layerminus1',
+                    'layer3.6.relu_1': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet56':
                 return_nodes =  {
                     'layer3.0.relu': 'layerminus18',
-                    'layer3.0.relu_19': 'layerminus17',
+                    'layer3.0.relu_1': 'layerminus17',
                     'layer3.1.relu': 'layerminus16',
-                    'layer3.1.relu_20': 'layerminus15',
+                    'layer3.1.relu_1': 'layerminus15',
                     'layer3.2.relu': 'layerminus14',
-                    'layer3.2.relu_21': 'layerminus13',
+                    'layer3.2.relu_1': 'layerminus13',
                     'layer3.3.relu': 'layerminus12',
-                    'layer3.3.relu_22': 'layerminus11',
+                    'layer3.3.relu_1': 'layerminus11',
                     'layer3.4.relu': 'layerminus10',
-                    'layer3.4.relu_23': 'layerminus9',
+                    'layer3.4.relu_1': 'layerminus9',
                     'layer3.5.relu': 'layerminus8',
-                    'layer3.5.relu_24': 'layerminus7',
+                    'layer3.5.relu_1': 'layerminus7',
                     'layer3.6.relu': 'layerminus6',
-                    'layer3.6.relu_25': 'layerminus5',
+                    'layer3.6.relu_1': 'layerminus5',
                     'layer3.7.relu': 'layerminus4',
-                    'layer3.7.relu_26': 'layerminus3',
+                    'layer3.7.relu_1': 'layerminus3',
                     'layer3.8.relu': 'layerminus2',
-                    'layer3.8.relu_27': 'layerminus1',
+                    'layer3.8.relu_1': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet110':
                 return_nodes =  {
                     'layer3.9.relu': 'layerminus18',
-                    'layer3.9.relu_46': 'layerminus17',
+                    'layer3.9.relu_1': 'layerminus17',
                     'layer3.10.relu': 'layerminus16',
-                    'layer3.10.relu_47': 'layerminus15',
+                    'layer3.10.relu_1': 'layerminus15',
                     'layer3.11.relu': 'layerminus14',
-                    'layer3.11.relu_48': 'layerminus13',
+                    'layer3.11.relu_1': 'layerminus13',
                     'layer3.12.relu': 'layerminus12',
-                    'layer3.12.relu_49': 'layerminus11',
+                    'layer3.12.relu_1': 'layerminus11',
                     'layer3.13.relu': 'layerminus10',
-                    'layer3.13.relu_50': 'layerminus9',
+                    'layer3.13.relu_1': 'layerminus9',
                     'layer3.14.relu': 'layerminus8',
-                    'layer3.14.relu_51': 'layerminus7',
+                    'layer3.14.relu_1': 'layerminus7',
                     'layer3.15.relu': 'layerminus6',
-                    'layer3.15.relu_52': 'layerminus5',
+                    'layer3.15.relu_1': 'layerminus5',
                     'layer3.16.relu': 'layerminus4',
-                    'layer3.16.relu_53': 'layerminus3',
+                    'layer3.16.relu_1': 'layerminus3',
                     'layer3.17.relu': 'layerminus2',
-                    'layer3.17.relu_54': 'layerminus1',
+                    'layer3.17.relu_1': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet8x4':
                 return_nodes = {
                     'layer2.0.relu': 'layerminus4',
-                    'layer2.0.relu_2': 'layerminus3',
+                    'layer2.0.relu_1': 'layerminus3',
                     'layer3.0.relu': 'layerminus2',
-                    'layer3.0.relu_3': 'layerminus1',
+                    'layer3.0.relu_1': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet32x4':
                 return_nodes =  {
                     'layer3.0.relu': 'layerminus10',
-                    'layer3.0.relu_11': 'layerminus9',
+                    'layer3.0.relu_1': 'layerminus9',
                     'layer3.1.relu': 'layerminus8',
-                    'layer3.1.relu_12': 'layerminus7',
+                    'layer3.1.relu_1': 'layerminus7',
                     'layer3.2.relu': 'layerminus6',
-                    'layer3.2.relu_13': 'layerminus5',
+                    'layer3.2.relu_1': 'layerminus5',
                     'layer3.3.relu': 'layerminus4',
-                    'layer3.3.relu_14': 'layerminus3',
+                    'layer3.3.relu_1': 'layerminus3',
                     'layer3.4.relu': 'layerminus2',
-                    'layer3.4.relu_15': 'layerminus1',
+                    'layer3.4.relu_1': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'ResNet18':
@@ -402,56 +402,56 @@ class Extractor(nn.Module):
                 return_nodes = {
                     'relu': 'layerminus5',
                     'layer1.0.relu_1': 'layerminus4',
-                    'layer2.0.relu_2': 'layerminus3',
-                    'layer3.0.relu_3': 'layerminus2',
+                    'layer2.0.relu_1': 'layerminus3',
+                    'layer3.0.relu_1': 'layerminus2',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet14':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.1.relu_2': 'layerminus4',
-                    'layer2.1.relu_4': 'layerminus3',
-                    'layer3.1.relu_6': 'layerminus2',
+                    'layer1.1.relu_1': 'layerminus4',
+                    'layer2.1.relu_1': 'layerminus3',
+                    'layer3.1.relu_1': 'layerminus2',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet20':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.2.relu_3': 'layerminus4',
-                    'layer2.2.relu_6': 'layerminus3',
-                    'layer3.2.relu_9': 'layerminus2',
+                    'layer1.2.relu_1': 'layerminus4',
+                    'layer2.2.relu_1': 'layerminus3',
+                    'layer3.2.relu_1': 'layerminus2',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet32':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.4.relu_5': 'layerminus4',
-                    'layer2.4.relu_10': 'layerminus3',
-                    'layer3.4.relu_15': 'layerminus2',
+                    'layer1.4.relu_1': 'layerminus4',
+                    'layer2.4.relu_1': 'layerminus3',
+                    'layer3.4.relu_1': 'layerminus2',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet44':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.6.relu_7': 'layerminus4',
-                    'layer2.6.relu_14': 'layerminus3',
-                    'layer3.6.relu_21': 'layerminus2',
+                    'layer1.6.relu_1': 'layerminus4',
+                    'layer2.6.relu_1': 'layerminus3',
+                    'layer3.6.relu_1': 'layerminus2',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet56':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.8.relu_9': 'layerminus4',
-                    'layer2.8.relu_18': 'layerminus3',
-                    'layer3.8.relu_27': 'layerminus2',
+                    'layer1.8.relu_1': 'layerminus4',
+                    'layer2.8.relu_1': 'layerminus3',
+                    'layer3.8.relu_1': 'layerminus2',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet110':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.17.relu_18': 'layerminus4',
-                    'layer2.17.relu_36': 'layerminus3',
-                    'layer3.17.relu_54': 'layerminus2',
+                    'layer1.17.relu_1': 'layerminus4',
+                    'layer2.17.relu_1': 'layerminus3',
+                    'layer3.17.relu_1': 'layerminus2',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet8x4':
@@ -465,9 +465,9 @@ class Extractor(nn.Module):
             elif model_name == 'resnet32x4':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.4.relu_5': 'layerminus4',
-                    'layer2.4.relu_10': 'layerminus3',
-                    'layer3.4.relu_15': 'layerminus2',
+                    'layer1.4.relu_1': 'layerminus4',
+                    'layer2.4.relu_1': 'layerminus3',
+                    'layer3.4.relu_11': 'layerminus2',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'ResNet18':
@@ -616,18 +616,18 @@ class Extractor(nn.Module):
             elif model_name == 'resnet56':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.8.relu_9': 'layerminus4',
-                    'layer2.8.relu_18': 'layerminus3',
-                    'layer3.8.relu_27': 'layerminus2',
+                    'layer1.8.relu_1': 'layerminus4',
+                    'layer2.8.relu_1': 'layerminus3',
+                    'layer3.8.relu_1': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet110':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.17.relu_18': 'layerminus4',
-                    'layer2.17.relu_36': 'layerminus3',
-                    'layer3.17.relu_54': 'layerminus2',
+                    'layer1.17.relu_1': 'layerminus4',
+                    'layer2.17.relu_1': 'layerminus3',
+                    'layer3.17.relu_1': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
                 }
@@ -643,9 +643,9 @@ class Extractor(nn.Module):
             elif model_name == 'resnet32x4':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.4.relu_5': 'layerminus4',
-                    'layer2.4.relu_10': 'layerminus3',
-                    'layer3.4.relu_15': 'layerminus2',
+                    'layer1.4.relu_1': 'layerminus4',
+                    'layer2.4.relu_1': 'layerminus3',
+                    'layer3.4.relu_1': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
                 }
@@ -787,18 +787,18 @@ class Extractor(nn.Module):
             elif model_name == 'resnet56':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.8.add_8': 'layerminus4',
-                    'layer2.8.add_17': 'layerminus3',
-                    'layer3.8.add_26': 'layerminus2',
+                    'layer1.8.add': 'layerminus4',
+                    'layer2.8.add': 'layerminus3',
+                    'layer3.8.add': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet110':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.17.add_17': 'layerminus4',
-                    'layer2.17.add_35': 'layerminus3',
-                    'layer3.17.add_53': 'layerminus2',
+                    'layer1.17.add': 'layerminus4',
+                    'layer2.17.add': 'layerminus3',
+                    'layer3.17.add': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
                 }
@@ -814,9 +814,9 @@ class Extractor(nn.Module):
             elif model_name == 'resnet32x4':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.4.add_4': 'layerminus4',
-                    'layer2.4.add_9': 'layerminus3',
-                    'layer3.4.add_14': 'layerminus2',
+                    'layer1.4.add': 'layerminus4',
+                    'layer2.4.add': 'layerminus3',
+                    'layer3.4.add': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
                 }
