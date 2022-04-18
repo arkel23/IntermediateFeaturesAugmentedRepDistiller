@@ -87,18 +87,20 @@ def main():
         opt.s_dim = feat_s[-1].shape[1]
         opt.t_dim = feat_t[-1].shape[1]
         rescaler_s = Rescaler(opt, model_s, opt.model_s)
-        proj_s = MLP(
+        proj_s = nn.ModuleList([MLP(
             layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
-            in_features=opt.s_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
+            in_features=opt.s_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim
+        ) for _ in range(opt.cont_no_l)])
+
         if opt.sskd:
             criterion_init = IFACRDv2Loss(opt)
             criterion_kd = IFACRDv2Loss(opt, return_logits=True)
             # init stage training
             rescaler_t = Rescaler(opt, model_t, opt.model_t)
-            proj_t = MLP(
+            proj_t = nn.ModuleList([MLP(
                 layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
                 in_features=opt.t_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim
-            )
+            ) for _ in range(opt.cont_no_l)])
             init_trainable_list = nn.ModuleList([])
             init_trainable_list.append(rescaler_t)
             init_trainable_list.append(proj_t)

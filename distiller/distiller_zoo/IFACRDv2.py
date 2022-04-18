@@ -30,11 +30,11 @@ class IFACRDv2Loss(nn.Module):
         """
         f_1 = f_1[-self.cont_no_l:]
         h_1 = rescaler(f_1)
-        z_1 = [proj(feat) for feat in h_1]
+        z_1 = [proj[i](feat) for i, feat in enumerate(h_1)]
 
         f_2 = f_2[-self.cont_no_l:]
         h_2 = rescaler(f_2)
-        z_2 = [proj(feat) for feat in h_2]
+        z_2 = [proj[i](feat) for i, feat in enumerate(h_2)]
         
         z = torch.cat([torch.stack(z_1, dim=1), torch.stack(z_2, dim=1)], dim=1)     
         loss = self.criterion(F.normalize(z, dim=2))
