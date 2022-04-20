@@ -27,7 +27,7 @@ class Rescaler(nn.Module):
             self.rescaling_head = nn.ModuleList([
                 MLP(
                     layer_norm=opt.rs_ln, no_layers=opt.rs_no_l, hidden_size=opt.rs_hid_dim, 
-                    in_features=original_dim, out_features=final_dim)
+                    in_features=original_dim, out_features=final_dim, rescaler=True)
                 for original_dim in original_dimensions])
         else:
             self.rescaling_head = nn.ModuleList([
@@ -49,7 +49,8 @@ class Rescaler(nn.Module):
 class MLP(nn.Module):
     def __init__(self, linear: bool = False, layer_norm: bool = False, 
                  no_layers: int = 3, in_features: int = None, 
-                 out_features: int = None, hidden_size: int = None, 
+                 out_features: int = None, hidden_size: int = None,
+                 rescaler: bool = False,
                  layer_norm_eps: float = 1e-12, dropout_prob: float = 0.1):
         super().__init__()
         
@@ -61,60 +62,71 @@ class MLP(nn.Module):
         if linear:
             self.no_layers = 1
             self.projector = nn.Sequential(
-                nn.Linear(in_features, out_features, bias=True)
+                nn.Linear(in_features, out_features, bias=False)
             )
         else:
             if not layer_norm:
                 if no_layers == 1:
                     self.projector = nn.Sequential(
-                        nn.Linear(in_features, out_features, bias=True),
-                        nn.BatchNorm1d(out_features)
+                        nn.Linear(in_features, out_features, bias=rescaler),
+                        #nn.BatchNorm1d(out_features)
                     )
                 elif no_layers == 2:
                     self.projector = nn.Sequential(
-                        nn.Linear(in_features, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
+                        nn.Linear(in_features, hidden_size, bias=True),
+                        #nn.BatchNorm1d(hidden_size),
                         nn.ReLU(inplace=True),
-                        nn.Linear(hidden_size, out_features),
-                        nn.BatchNorm1d(out_features)
+                        nn.Linear(hidden_size, out_features, bias=rescaler),
+                        #nn.BatchNorm1d(out_features)
                     )
                 else:
                     self.projector = nn.Sequential(
-                        nn.Linear(in_features, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
+                        nn.Linear(in_features, hidden_size, bias=True),
+                        #nn.BatchNorm1d(hidden_size),
                         nn.ReLU(inplace=True),
-                        nn.Linear(hidden_size, hidden_size),
-                        nn.BatchNorm1d(hidden_size),
+                        nn.Linear(hidden_size, hidden_size, bias=True),
+                        #nn.BatchNorm1d(hidden_size),
                         nn.ReLU(inplace=True),
-                        nn.Linear(hidden_size, out_features),
-                        nn.BatchNorm1d(out_features)
+                        nn.Linear(hidden_size, out_features, bias=rescaler),
+                        #nn.BatchNorm1d(out_features)
                     )
             else:
                 if no_layers == 1:
                     self.projector = nn.Sequential(
-                        nn.Linear(in_features, out_features, bias=True),
-                        nn.LayerNorm(out_features, eps=layer_norm_eps)
+                        nn.Linear(in_features, out_features, bias=rescaler),
+                        #nn.LayerNorm(out_features, eps=layer_norm_eps)
                     )
                 elif no_layers == 2:
                     self.projector = nn.Sequential(
-                        nn.Linear(in_features, hidden_size),
-                        nn.LayerNorm(hidden_size, eps=layer_norm_eps),
+                        nn.Linear(in_features, hidden_size, bias=True),
+                        #nn.LayerNorm(hidden_size, eps=layer_norm_eps),
                         nn.GELU(),
-                        nn.Linear(hidden_size, out_features),
-                        nn.LayerNorm(out_features, eps=layer_norm_eps)
+                        nn.Linear(hidden_size, out_features, bias=rescaler),
+                        #nn.LayerNorm(out_features, eps=layer_norm_eps)
                     )
                 else:
                     self.projector = nn.Sequential(
-                        nn.Linear(in_features, hidden_size),
-                        nn.LayerNorm(hidden_size, eps=layer_norm_eps),
+                        nn.Linear(in_features, hidden_size, bias=True),
+                        #nn.LayerNorm(hidden_size, eps=layer_norm_eps),
                         nn.GELU(),
-                        nn.Linear(hidden_size, hidden_size),
-                        nn.LayerNorm(hidden_size, eps=layer_norm_eps),
+                        nn.Linear(hidden_size, hidden_size, bias=True),
+                        #nn.LayerNorm(hidden_size, eps=layer_norm_eps),
                         nn.GELU(),
-                        nn.Linear(hidden_size, out_features),
-                        nn.LayerNorm(out_features, eps=layer_norm_eps)
+                        nn.Linear(hidden_size, out_features, bias=rescaler),
+                        #nn.LayerNorm(out_features, eps=layer_norm_eps)
                     )
-                
+            if rescaler:
+                if layer_norm:
+                    self.projector = nn.Sequential(
+                        self.projector,
+                        nn.GELU()
+                    )
+                else:
+                    self.projector = nn.Sequential(
+                        self.projector,
+                        nn.ReLU()
+                    )
+
     def forward(self, x):
         return self.projector(x)
 

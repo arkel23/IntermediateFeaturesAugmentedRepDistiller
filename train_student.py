@@ -213,6 +213,7 @@ def main():
     teacher_acc, _ = validate(val_loader, model_t, criterion_cls, opt)
     if opt.local_rank == 0:
         print('teacher accuracy: ', teacher_acc)
+        print(module_list)
 
     # routine
     for epoch in range(1, opt.epochs+1):
