@@ -7,48 +7,55 @@ from distiller.models.util import MLP, Rescaler
 
 class IFACRDLoss(nn.Module):
     """IFACRD Loss function
-    
+
     Args:
         opt.nce_t: the temperature
         opt.cont_no_l: no of layers for contrast
-        
+
         opt.rs_ln: use ln for rescalers (otherwise bn)
         opt.rs_no_l: no of layers for rescaler
         opt.rs_hid_dim: the dimension of the rescaler hidden layer space
-        
+
         opt.proj_ln: use ln for projectors (otherwise bn)
         opt.proj_no_l: no of layers for projection
         opt.proj_hid_dim: the dimension of the projector hidden layer space
-        
+
         opt.s_dim: the dimension of student's feature
         opt.t_dim: the dimension of teacher's feature
         opt.feat_dim: the dimension of the projection space
     """
+
     def __init__(self, opt, model_t):
         super(IFACRDLoss, self).__init__()
-        
+
         self.cont_s = opt.cont_s
         self.cont_t = opt.cont_t
         self.cont_no_l = opt.cont_no_l
-    
-        self.proj_s  = MLP(
-            layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
+
+        self.proj_s = MLP(
+            layer_norm=opt.proj_ln, batch_norm=opt.proj_bn,
+            proj_out_norm=opt.proj_out_norm, no_layers=opt.proj_no_l,
             in_features=opt.s_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
 
-        self.proj_t = nn.ModuleList([
-            MLP(
-                layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
+        if opt.proj_ind:
+            self.proj_t = nn.ModuleList([
+                MLP(
+                    layer_norm=opt.proj_ln, batch_norm=opt.proj_bn,
+                    proj_out_norm=opt.proj_out_norm, no_layers=opt.proj_no_l,
+                    in_features=opt.t_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
+                for _ in range(self.cont_no_l)])
+            self.proj_ind = opt.proj_ind
+        else:
+            self.proj_t = MLP(
+                layer_norm=opt.proj_ln, batch_norm=opt.proj_bn,
+                proj_out_norm=opt.proj_out_norm, no_layers=opt.proj_no_l,
                 in_features=opt.t_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
-            for _ in range(self.cont_no_l)])
 
-        #self.proj_t  = MLP(
-        #    layer_norm=opt.proj_ln, no_layers=opt.proj_no_l, 
-        #    in_features=opt.t_dim, out_features=opt.feat_dim, hidden_size=opt.proj_hid_dim)
-        
         self.rescaler = Rescaler(opt, model_t, opt.model_t)
-        
-        self.criterion = SupConLoss(temperature=opt.nce_t, base_temperature=opt.nce_t, contrast_mode='all')
-       
+
+        self.criterion = SupConLoss(
+            temperature=opt.nce_t, base_temperature=opt.nce_t, contrast_mode='all')
+
     def forward(self, f_s, f_t):
         """
         Args:
@@ -65,50 +72,76 @@ class IFACRDLoss(nn.Module):
             f_s_2 = self.proj_s(f_s_2)
             f_s = torch.stack([f_s_1, f_s_2], dim=1)
         elif self.cont_s == 4:
-            f_s_0, f_s_1, f_s_2 = f_s 
-            f_s_0 = self.proj_s(f_s_0)   
+            f_s_0, f_s_1, f_s_2 = f_s
+            f_s_0 = self.proj_s(f_s_0)
             f_s_1 = self.proj_s(f_s_1)
             f_s_2 = self.proj_s(f_s_2)
             f_s = torch.stack([f_s_0, f_s_1, f_s_2], dim=1)
-        
+
         if self.cont_t in [0, 1, 2]:
             f_t = f_t[-self.cont_no_l:]
             f_t = self.rescaler(f_t)
-            f_t = [self.proj_t[i](feat) for i, feat in enumerate(f_t)]
+            if hasattr(self, 'proj_ind'):
+                f_t = [self.proj_t[i](feat) for i, feat in enumerate(f_t)]
+            else:
+                f_t = [self.proj_t(feat) for feat in f_t]
         elif self.cont_t == 3:
             f_t_1, f_t_2 = f_t
+
             f_t_1 = f_t_1[-self.cont_no_l:]
             f_t_1 = self.rescaler(f_t_1)
-            f_t_1 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_1)]
+            if hasattr(self, 'proj_ind'):
+                f_t_1 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_1)]
+            else:
+                f_t_1 = [self.proj_t(feat) for feat in f_t_1]
+
             f_t_2 = f_t_2[-self.cont_no_l:]
             f_t_2 = self.rescaler(f_t_2)
-            f_t_2 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_2)]
+            if hasattr(self, 'proj_ind'):
+                f_t_2 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_2)]
+            else:
+                f_t_2 = [self.proj_t(feat) for feat in f_t_2]
+
             f_t = f_t_1 + f_t_2
         elif self.cont_t == 4:
             f_t_0, f_t_1, f_t_2 = f_t
+
             f_t_0 = f_t_0[-self.cont_no_l:]
             f_t_0 = self.rescaler(f_t_0)
-            f_t_0 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_0)] 
+            if hasattr(self, 'proj_ind'):
+                f_t_0 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_0)]
+            else:
+                f_t_0 = [self.proj_t(feat) for feat in f_t_0]
+
             f_t_1 = f_t_1[-self.cont_no_l:]
             f_t_1 = self.rescaler(f_t_1)
-            f_t_1 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_1)]
+            if hasattr(self, 'proj_ind'):
+                f_t_1 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_1)]
+            else:
+                f_t_1 = [self.proj_t(feat) for feat in f_t_1]
+
             f_t_2 = f_t_2[-self.cont_no_l:]
             f_t_2 = self.rescaler(f_t_2)
-            f_t_2 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_2)]
+            if hasattr(self, 'proj_ind'):
+                f_t_2 = [self.proj_t[i](feat) for i, feat in enumerate(f_t_2)]
+            else:
+                f_t_2 = [self.proj_t(feat) for feat in f_t_2]
+
             f_t = f_t_0 + f_t_1 + f_t_2
-       
+
         if self.cont_s in [0, 1, 2]:
-            z = torch.cat([f_s.unsqueeze(1), torch.stack(f_t, dim=1)], dim=1)     
+            z = torch.cat([f_s.unsqueeze(1), torch.stack(f_t, dim=1)], dim=1)
         else:
             z = torch.cat([f_s, torch.stack(f_t, dim=1)], dim=1)
-        loss = self.criterion(F.normalize(z, dim=2))
-        return loss 
 
+        loss = self.criterion(F.normalize(z, dim=2))
+        return loss
 
 
 class SupConLoss(nn.Module):
     """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf.
     It also supports the unsupervised contrastive loss in SimCLR"""
+
     def __init__(self, temperature=0.07, contrast_mode='all',
                  base_temperature=0.07, return_logits=False):
         super(SupConLoss, self).__init__()
@@ -145,7 +178,8 @@ class SupConLoss(nn.Module):
         elif labels is not None:
             labels = labels.contiguous().view(-1, 1)
             if labels.shape[0] != batch_size:
-                raise ValueError('Num of labels does not match num of features')
+                raise ValueError(
+                    'Num of labels does not match num of features')
             mask = torch.eq(labels, labels.T).float().to(device)
         else:
             mask = mask.float().to(device)
@@ -168,7 +202,7 @@ class SupConLoss(nn.Module):
         # for numerical stability
         logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
         logits = anchor_dot_contrast - logits_max.detach()
-        
+
         # tile mask
         mask = mask.repeat(anchor_count, contrast_count)
         # mask-out self-contrast cases
@@ -186,7 +220,7 @@ class SupConLoss(nn.Module):
             return exp_logits
 
         log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
-        
+
         # compute mean of log-likelihood over positive
         mean_log_prob_pos = (mask * log_prob).sum(1) / mask.sum(1)
 
@@ -195,6 +229,3 @@ class SupConLoss(nn.Module):
         loss = loss.view(anchor_count, batch_size).mean()
 
         return loss
-    
-
-

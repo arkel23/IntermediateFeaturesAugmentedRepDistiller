@@ -12,7 +12,7 @@ from .vgg import vgg19_bn, vgg16_bn, vgg13_bn, vgg11_bn, vgg8_bn
 from .mobilenetv2 import mobile_half
 from .ShuffleNetv1 import ShuffleV1
 from .ShuffleNetv2 import ShuffleV2
-from .vit import vit
+# from .vit import vit
 
 
 model_dict = {
@@ -43,18 +43,19 @@ model_dict = {
 }
 
 
-def model_extractor(model_name, num_classes, image_size, 
-                    pretrained=False, layers='default'):
+def model_extractor(model_name, num_classes, image_size,
+                    pretrained=False, layers='default', no_pool=False):
     if model_name in ['B_16', 'B_32', 'L_16', 'Bs_16', 'Bss_16']:
+        raise NotImplementedError
         m = vit(model_name, num_classes, image_size, pretrained)
     else:
         m = model_dict[model_name](num_classes=num_classes)
-    model = Extractor(m, model_name, layers)
+    model = Extractor(m, model_name, layers, no_pool)
     return model
 
 
 class Extractor(nn.Module):
-    def __init__(self, model, model_name, layers='default'):
+    def __init__(self, model, model_name, layers='default', no_pool=False):
         super(Extractor, self).__init__()
         self.model_name = model_name
         if model_name in ['B_16', 'B_32', 'L_16', 'Bs_16', 'Bss_16']:
@@ -64,7 +65,7 @@ class Extractor(nn.Module):
                     Rearrange('b s c -> b c s'),
                     nn.AdaptiveAvgPool1d(1),
                     Rearrange('b c 1 -> b c'),
-                    )
+                )
             else:
                 self.last_pool = nn.Sequential(
                     Rearrange('b s c -> b c s'),
@@ -73,11 +74,17 @@ class Extractor(nn.Module):
                 )
         else:
             return_nodes = self.get_return_nodes(model, model_name, layers)
-            self.model = feature_extraction.create_feature_extractor(model, return_nodes=return_nodes)
+            self.model = feature_extraction.create_feature_extractor(
+                model, return_nodes=return_nodes)
             if layers not in ['default', 'preact', 'last_only']:
-                self.pool = nn.Sequential(
-                    nn.AdaptiveAvgPool2d(1), 
-                    Rearrange('b c 1 1 -> b c')
+                if no_pool:
+                    self.pool = nn.Sequential(
+                        Rearrange('b c h w -> b (h w) c')
+                    )
+                else:
+                    self.pool = nn.Sequential(
+                        nn.AdaptiveAvgPool2d(1),
+                        Rearrange('b c 1 1 -> b c')
                     )
 
     def forward(self, x, classify_only=True):
@@ -92,22 +99,22 @@ class Extractor(nn.Module):
                     pooled_logits = self.last_pool(interm_feats[-1])
                     interm_feats = [feats[:, 1:, :] for feats in interm_feats]
                     s = [feats.shape[1] for feats in interm_feats]
-                    return [einops.rearrange(feats, 'b (s1 s2) c -> b c s1 s2', s1=int(math.sqrt(s[i]))) \
-                        for i, feats in enumerate(interm_feats)] + [pooled_logits] + [x]
+                    return [einops.rearrange(feats, 'b (s1 s2) c -> b c s1 s2', s1=int(math.sqrt(s[i])))
+                            for i, feats in enumerate(interm_feats)] + [pooled_logits] + [x]
         else:
             x = list(self.model(x).values())
             if classify_only:
                 return x[-1]
             else:
                 if hasattr(self, 'pool'):
-                    return [self.pool(feats) for feats in x[:-1]] + [x[-1]]  
+                    return [self.pool(feats) for feats in x[:-1]] + [x[-1]]
                 else:
                     return x
 
     def get_feat_modules(self):
         feat_m = nn.ModuleList([])
-        if self.model_name in ['resnet8', 'resnet14', 'resnet32', 'resnet44', 
-                'resnet56', 'resnet110', 'resnet8x4', 'resnet32x4']:
+        if self.model_name in ['resnet8', 'resnet14', 'resnet32', 'resnet44',
+                               'resnet56', 'resnet110', 'resnet8x4', 'resnet32x4']:
             feat_m.append(self.model.conv1)
             feat_m.append(self.model.bn1)
             feat_m.append(self.model.relu)
@@ -154,9 +161,9 @@ class Extractor(nn.Module):
             feat_m.append(self.model.conv1)
             feat_m.append(self.model.blocks)
         else:
-            raise NotImplementedError    
+            raise NotImplementedError
         return feat_m
-  
+
     def get_return_nodes(self, model, model_name, layers):
         # train_nodes, eval_nodes = feature_extraction.get_graph_node_names(model)
         if layers == 'last':
@@ -187,7 +194,7 @@ class Extractor(nn.Module):
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet32':
-                return_nodes =  {
+                return_nodes = {
                     'layer3.0.relu': 'layerminus10',
                     'layer3.0.relu_1': 'layerminus9',
                     'layer3.1.relu': 'layerminus8',
@@ -201,7 +208,7 @@ class Extractor(nn.Module):
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet44':
-                return_nodes =  {
+                return_nodes = {
                     'layer3.0.relu': 'layerminus14',
                     'layer3.0.relu_1': 'layerminus13',
                     'layer3.1.relu': 'layerminus12',
@@ -219,7 +226,7 @@ class Extractor(nn.Module):
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet56':
-                return_nodes =  {
+                return_nodes = {
                     'layer3.0.relu': 'layerminus18',
                     'layer3.0.relu_1': 'layerminus17',
                     'layer3.1.relu': 'layerminus16',
@@ -241,7 +248,7 @@ class Extractor(nn.Module):
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet110':
-                return_nodes =  {
+                return_nodes = {
                     'layer3.9.relu': 'layerminus18',
                     'layer3.9.relu_1': 'layerminus17',
                     'layer3.10.relu': 'layerminus16',
@@ -271,7 +278,7 @@ class Extractor(nn.Module):
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet32x4':
-                return_nodes =  {
+                return_nodes = {
                     'layer3.0.relu': 'layerminus10',
                     'layer3.0.relu_1': 'layerminus9',
                     'layer3.1.relu': 'layerminus8',
@@ -285,34 +292,34 @@ class Extractor(nn.Module):
                     'fc': 'layerminus0'
                 }
             elif model_name == 'ResNet18':
-                return_nodes =  {
-                    'layer4.0.relu_13': 'layerminus4',
-                    'layer4.0.relu_14': 'layerminus3',
-                    'layer4.1.relu_15': 'layerminus2',
-                    'layer4.1.relu_16': 'layerminus1',
+                return_nodes = {
+                    'layer4.0.relu': 'layerminus4',
+                    'layer4.0.relu_1': 'layerminus3',
+                    'layer4.1.relu': 'layerminus2',
+                    'layer4.1.relu_1': 'layerminus1',
                     'linear': 'layerminus0'
                 }
             elif model_name == 'ResNet34':
-                return_nodes =  {
-                    'layer4.0.relu_27': 'layerminus6',
-                    'layer4.0.relu_28': 'layerminus5',
-                    'layer4.1.relu_29': 'layerminus4',
-                    'layer4.1.relu_30': 'layerminus3',
-                    'layer4.2.relu_31': 'layerminus2',
-                    'layer4.2.relu_32': 'layerminus1',
+                return_nodes = {
+                    'layer4.0.relu': 'layerminus6',
+                    'layer4.0.relu_1': 'layerminus5',
+                    'layer4.1.relu': 'layerminus4',
+                    'layer4.1.relu_1': 'layerminus3',
+                    'layer4.2.relu': 'layerminus2',
+                    'layer4.2.relu_1': 'layerminus1',
                     'linear': 'layerminus0'
                 }
             elif model_name == 'ResNet50':
-                return_nodes =  {
-                    'layer4.0.relu_40': 'layerminus9',
-                    'layer4.0.relu_41': 'layerminus8',
-                    'layer4.0.relu_42': 'layerminus7',
-                    'layer4.1.relu_43': 'layerminus6',
-                    'layer4.1.relu_44': 'layerminus5',
-                    'layer4.1.relu_45': 'layerminus4',
-                    'layer4.2.relu_46': 'layerminus3',
-                    'layer4.2.relu_47': 'layerminus2',
-                    'layer4.2.relu_48': 'layerminus1',
+                return_nodes = {
+                    'layer4.0.relu': 'layerminus9',
+                    'layer4.0.relu_1': 'layerminus8',
+                    'layer4.0.relu_2': 'layerminus7',
+                    'layer4.1.relu': 'layerminus6',
+                    'layer4.1.relu_1': 'layerminus5',
+                    'layer4.1.relu_2': 'layerminus4',
+                    'layer4.2.relu': 'layerminus3',
+                    'layer4.2.relu_1': 'layerminus2',
+                    'layer4.2.relu_2': 'layerminus1',
                     'linear': 'layerminus0'
                 }
             elif model_name in ['wrn_16_1', 'wrn_16_2']:
@@ -362,7 +369,7 @@ class Extractor(nn.Module):
                     'conv2.0': 'layerminus3',
                     'conv2.1': 'layerminus2',
                     'conv2.2': 'layerminus1',
-                    'classifier.0': 'layerminus0'                
+                    'classifier.0': 'layerminus0'
                 }
             elif model_name == 'ShuffleV1':
                 return_nodes = {
@@ -378,7 +385,7 @@ class Extractor(nn.Module):
                     'layer3.3.relu_46': 'layerminus3',
                     'layer3.3.relu_47': 'layerminus2',
                     'layer3.3.relu_48': 'layerminus1',
-                    'linear': 'layerminus0' 
+                    'linear': 'layerminus0'
                 }
             elif model_name == 'ShuffleV2':
                 return_nodes = {
@@ -392,11 +399,11 @@ class Extractor(nn.Module):
                     'layer3.3.relu_34': 'layerminus3',
                     'layer3.3.relu_35': 'layerminus2',
                     'relu_36': 'layerminus1',
-                    'linear': 'layerminus0' 
+                    'linear': 'layerminus0'
                 }
             else:
                 raise NotImplementedError
-        
+
         elif layers == 'blocks':
             if model_name == 'resnet8':
                 return_nodes = {
@@ -500,18 +507,18 @@ class Extractor(nn.Module):
             elif model_name in ['wrn_16_1', 'wrn_16_2']:
                 return_nodes = {
                     'conv1': 'layerminus5',
-                    'block1.layer.1.add_1': 'layerminus4',
-                    'block2.layer.1.add_3': 'layerminus3',
-                    'block3.layer.1.add_5': 'layerminus2',
+                    'block1.layer.1.add': 'layerminus4',
+                    'block2.layer.1.add': 'layerminus3',
+                    'block3.layer.1.add': 'layerminus2',
                     'fc': 'layerminus0'
                 }
             elif model_name in ['wrn_40_1', 'wrn_40_2']:
                 return_nodes = {
                     'conv1': 'layerminus5',
-                    'block1.layer.5.add_5': 'layerminus4',
-                    'block2.layer.5.add_11': 'layerminus3',
-                    'block3.layer.5.add_17': 'layerminus2',
-                    'fc': 'layerminus0'                }
+                    'block1.layer.5.add': 'layerminus4',
+                    'block2.layer.5.add': 'layerminus3',
+                    'block3.layer.5.add': 'layerminus2',
+                    'fc': 'layerminus0'}
             elif model_name in ['vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19']:
                 return_nodes = {
                     'relu': 'layerminus6',
@@ -528,7 +535,7 @@ class Extractor(nn.Module):
                     'blocks.2.2.add_2': 'layerminus4',
                     'blocks.4.2.add_7': 'layerminus3',
                     'blocks.6.0.conv.7': 'layerminus2',
-                    'classifier.0': 'layerminus0'                
+                    'classifier.0': 'layerminus0'
                 }
             elif model_name == 'ShuffleV1':
                 return_nodes = {
@@ -536,7 +543,7 @@ class Extractor(nn.Module):
                     'layer1.3.relu_12': 'layerminus4',
                     'layer2.7.relu_36': 'layerminus3',
                     'layer3.3.relu_48': 'layerminus2',
-                    'linear': 'layerminus0' 
+                    'linear': 'layerminus0'
                 }
             elif model_name == 'ShuffleV2':
                 return_nodes = {
@@ -548,68 +555,73 @@ class Extractor(nn.Module):
                 }
             else:
                 raise NotImplementedError
-                            
+
         elif layers == 'all':
-            train_nodes, eval_nodes = feature_extraction.get_graph_node_names(model)
-            if model_name in ['resnet8', 'resnet14', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 
+            train_nodes, eval_nodes = feature_extraction.get_graph_node_names(
+                model)
+            if model_name in ['resnet8', 'resnet14', 'resnet32', 'resnet44', 'resnet56', 'resnet110',
                               'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2']:
-                return_nodes = {node:i for i, node in enumerate(train_nodes) if 'relu' in train_nodes}
-                return_nodes['fc'] = 'layerminus0' 
+                return_nodes = {node: i for i, node in enumerate(
+                    train_nodes) if 'relu' in train_nodes}
+                return_nodes['fc'] = 'layerminus0'
             elif model_name in ['ResNet18', 'ResNet34', 'ResNet50', 'ShuffleV1', 'ShuffleV2']:
-                return_nodes = {node:i for i, node in enumerate(train_nodes) if 'relu' in train_nodes}
-                return_nodes['linear'] = 'layerminus0' 
+                return_nodes = {node: i for i, node in enumerate(
+                    train_nodes) if 'relu' in train_nodes}
+                return_nodes['linear'] = 'layerminus0'
             elif model_name in ['vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19']:
-                return_nodes = {node:i for i, node in enumerate(train_nodes) if 'relu' in train_nodes}
-                return_nodes['classifier'] = 'layerminus0' 
+                return_nodes = {node: i for i, node in enumerate(
+                    train_nodes) if 'relu' in train_nodes}
+                return_nodes['classifier'] = 'layerminus0'
             elif model_name == 'MobileNetV2':
-                return_nodes = {node:i for i, node in enumerate(train_nodes) if 'conv' in train_nodes}
-                return_nodes['classifier.0'] = 'layerminus0' 
+                return_nodes = {node: i for i, node in enumerate(
+                    train_nodes) if 'conv' in train_nodes}
+                return_nodes['classifier.0'] = 'layerminus0'
             else:
                 raise NotImplementedError
-        
+
         elif layers == 'default':
             if model_name == 'resnet8':
                 return_nodes = {
                     'relu': 'layerminus5',
                     'layer1.0.relu_1': 'layerminus4',
-                    'layer2.0.relu_2': 'layerminus3',
-                    'layer3.0.relu_3': 'layerminus2',
+                    'layer2.0.relu_1': 'layerminus3',
+                    'layer3.0.relu_1': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet14':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.1.relu_2': 'layerminus4',
-                    'layer2.1.relu_4': 'layerminus3',
-                    'layer3.1.relu_6': 'layerminus2',
+                    'layer1.1.relu_1': 'layerminus4',
+                    'layer2.1.relu_1': 'layerminus3',
+                    'layer3.1.relu_1': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet20':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.2.relu_3': 'layerminus4',
-                    'layer2.2.relu_6': 'layerminus3',
-                    'layer3.2.relu_9': 'layerminus2',
+                    'layer1.2.relu_1': 'layerminus4',
+                    'layer2.2.relu_1': 'layerminus3',
+                    'layer3.2.relu_1': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet32':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.4.relu_5': 'layerminus4',
-                    'layer2.4.relu_10': 'layerminus3',
-                    'layer3.4.relu_15': 'layerminus2',
+                    'layer1.4.relu_1': 'layerminus4',
+                    'layer2.4.relu_1': 'layerminus3',
+                    'layer3.4.relu_1': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name == 'resnet44':
                 return_nodes = {
                     'relu': 'layerminus5',
-                    'layer1.6.relu_7': 'layerminus4',
-                    'layer2.6.relu_14': 'layerminus3',
-                    'layer3.6.relu_21': 'layerminus2',
+                    'layer1.6.relu_1': 'layerminus4',
+                    'layer2.6.relu_1': 'layerminus3',
+                    'layer3.6.relu_1': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
                 }
@@ -635,8 +647,8 @@ class Extractor(nn.Module):
                 return_nodes = {
                     'relu': 'layerminus5',
                     'layer1.0.relu_1': 'layerminus4',
-                    'layer2.0.relu_2': 'layerminus3',
-                    'layer3.0.relu_3': 'layerminus2',
+                    'layer2.0.relu_1': 'layerminus3',
+                    'layer3.0.relu_1': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
                 }
@@ -652,50 +664,50 @@ class Extractor(nn.Module):
             elif model_name == 'ResNet18':
                 return_nodes = {
                     'relu': 'layerminus6',
-                    'layer1.1.relu_4': 'layerminus5',
-                    'layer2.1.relu_8': 'layerminus4',
-                    'layer3.1.relu_12': 'layerminus3',
-                    'layer4.1.relu_16': 'layerminus2',
+                    'layer1.1.relu_1': 'layerminus5',
+                    'layer2.1.relu_1': 'layerminus4',
+                    'layer3.1.relu_1': 'layerminus3',
+                    'layer4.1.relu_1': 'layerminus2',
                     'view': 'layerminus1',
                     'linear': 'layerminus0'
                 }
             elif model_name == 'ResNet34':
                 return_nodes = {
                     'relu': 'layerminus6',
-                    'layer1.2.relu_6': 'layerminus5',
-                    'layer2.3.relu_14': 'layerminus4',
-                    'layer3.5.relu_26': 'layerminus3',
-                    'layer4.2.relu_32': 'layerminus2',
+                    'layer1.2.relu_1': 'layerminus5',
+                    'layer2.3.relu_1': 'layerminus4',
+                    'layer3.5.relu_1': 'layerminus3',
+                    'layer4.2.relu_1': 'layerminus2',
                     'view': 'layerminus1',
                     'linear': 'layerminus0'
                 }
             elif model_name == 'ResNet50':
                 return_nodes = {
                     'relu': 'layerminus6',
-                    'layer1.2.relu_9': 'layerminus5',
-                    'layer2.3.relu_21': 'layerminus4',
-                    'layer3.5.relu_39': 'layerminus3',
-                    'layer4.2.relu_48': 'layerminus2',
+                    'layer1.2.relu_1': 'layerminus5',
+                    'layer2.3.relu_1': 'layerminus4',
+                    'layer3.5.relu_1': 'layerminus3',
+                    'layer4.2.relu_1': 'layerminus2',
                     'view': 'layerminus1',
                     'linear': 'layerminus0'
                 }
             elif model_name in ['wrn_16_1', 'wrn_16_2']:
                 return_nodes = {
                     'conv1': 'layerminus5',
-                    'block1.layer.1.add_1': 'layerminus4',
-                    'block2.layer.1.add_3': 'layerminus3',
-                    'block3.layer.1.add_5': 'layerminus2',
+                    'block1.layer.1.add': 'layerminus4',
+                    'block2.layer.1.add': 'layerminus3',
+                    'block3.layer.1.add': 'layerminus2',
                     'view': 'layerminus1',
                     'fc': 'layerminus0'
                 }
             elif model_name in ['wrn_40_1', 'wrn_40_2']:
                 return_nodes = {
                     'conv1': 'layerminus5',
-                    'block1.layer.5.add_5': 'layerminus4',
-                    'block2.layer.5.add_11': 'layerminus3',
-                    'block3.layer.5.add_17': 'layerminus2',
+                    'block1.layer.5.add': 'layerminus4',
+                    'block2.layer.5.add': 'layerminus3',
+                    'block3.layer.5.add': 'layerminus2',
                     'view': 'layerminus1',
-                    'fc': 'layerminus0'                }
+                    'fc': 'layerminus0'}
             elif model_name in ['vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19']:
                 return_nodes = {
                     'relu': 'layerminus6',
@@ -714,7 +726,7 @@ class Extractor(nn.Module):
                     'blocks.4.2.add_7': 'layerminus3',
                     'blocks.6.0.conv.7': 'layerminus2',
                     'view': 'layerminus1',
-                    'classifier.0': 'layerminus0'                
+                    'classifier.0': 'layerminus0'
                 }
             elif model_name == 'ShuffleV1':
                 return_nodes = {
@@ -723,7 +735,7 @@ class Extractor(nn.Module):
                     'layer2.7.relu_36': 'layerminus3',
                     'layer3.3.relu_48': 'layerminus2',
                     'view_16': 'layerminus1',
-                    'linear': 'layerminus0' 
+                    'linear': 'layerminus0'
                 }
             elif model_name == 'ShuffleV2':
                 return_nodes = {
@@ -736,8 +748,7 @@ class Extractor(nn.Module):
                 }
             else:
                 raise NotImplementedError
-        
-        
+
         elif layers == 'preact':
             if model_name == 'resnet8':
                 return_nodes = {
@@ -917,7 +928,7 @@ class Extractor(nn.Module):
                     'view': 'layerminus1',
                     'classifier': 'layerminus0'
                 }
-            
+
             elif model_name == 'MobileNetV2':
                 return_nodes = {
                     'conv1.2': 'layerminus6',
@@ -926,7 +937,7 @@ class Extractor(nn.Module):
                     'blocks.4.2.add_7': 'layerminus3',
                     'blocks.6.0.conv.7': 'layerminus2',
                     'view': 'layerminus1',
-                    'classifier.0': 'layerminus0'                
+                    'classifier.0': 'layerminus0'
                 }
             elif model_name == 'ShuffleV1':
                 return_nodes = {
@@ -935,7 +946,7 @@ class Extractor(nn.Module):
                     'layer2.7.add_9': 'layerminus3',
                     'layer3.3.add_12': 'layerminus2',
                     'view_16': 'layerminus1',
-                    'linear': 'layerminus0' 
+                    'linear': 'layerminus0'
                 }
             elif model_name == 'ShuffleV2':
                 return_nodes = {
@@ -948,22 +959,21 @@ class Extractor(nn.Module):
                 }
             else:
                 raise NotImplementedError
-            
+
         elif layers == 'last_only':
-            if model_name in ['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 
+            if model_name in ['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110',
                               'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2']:
-                return_nodes = {'fc': 'layerminus0'}            
+                return_nodes = {'fc': 'layerminus0'}
             elif model_name in ['ResNet18', 'ResNet34', 'ResNet50', 'ShuffleV1', 'ShuffleV2']:
-                return_nodes = {'linear': 'layerminus0'}            
+                return_nodes = {'linear': 'layerminus0'}
             elif model_name in ['vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19']:
-                return_nodes = {'classifier': 'layerminus0'}            
+                return_nodes = {'classifier': 'layerminus0'}
             elif model_name == 'MobileNetV2':
-                return_nodes = {'classifier.0': 'layerminus0'}            
+                return_nodes = {'classifier.0': 'layerminus0'}
             else:
                 raise NotImplementedError
-        
-        
+
         else:
-            raise NotImplementedError      
-        
+            raise NotImplementedError
+
         return return_nodes
