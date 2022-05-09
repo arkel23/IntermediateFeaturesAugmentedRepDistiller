@@ -304,6 +304,7 @@ def parse_option_student():
             opt.sskd = False
         if opt.rs_mixer or opt.rs_transformer:
             opt.rs_no_pool = True
+        opt.distill_ext = f'{opt.distill}_{opt.cont_no_l}_{opt.proj_ind}'
 
     if opt.sste:
         opt.gamma = 0
